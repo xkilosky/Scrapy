@@ -1,4 +1,5 @@
 /** Behind the "Run checks" button. */
+import { closedResponse, isOpen } from '@/lib/access';
 import { runChecks, type CheckReport } from '@/lib/check';
 import { ScrapyError } from '@/lib/errors';
 import { getLimiter, visitorOf } from '@/lib/limits';
@@ -12,6 +13,7 @@ export const maxDuration = 180;
 const REUSE_SEC = 120;
 
 export async function POST(request: Request): Promise<Response> {
+  if (!isOpen()) return closedResponse();
   const store = getStore();
   const last = await store.get<CheckReport>('check:last');
   if (last) return Response.json({ ...last, reused: true });

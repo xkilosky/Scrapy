@@ -147,7 +147,9 @@ Tell me if you want any of these changed.
 
 You are planning whether Scrapy gets a password and will tell me later. Nothing in the build depends on it. It is one setting, and it needs no outside account either way.
 
-Until you decide, Scrapy lives only at a test address. By default Vercel shows test addresses only to someone logged in to your Vercel account. I will confirm that once the project exists. Scrapy gets a public address at the last stage, and I will ask you before that.
+Until you decide, Scrapy can only be used at its test addresses. Vercel shows those only to someone logged in to your Vercel account.
+
+A correction to the first version of this section: I wrote that Scrapy would get a public address only at the last stage. Vercel gives every project a public address from its very first deployment. So Scrapy now has a switch: at the public address it is closed, answers every call with one sentence and contacts nobody, until the setting `SCRAPY_OPEN` is turned on. I will not turn it on without asking you.
 
 One thing to weigh when you decide: with no password, anyone who finds the address can use Scrapy and use up the free doors.
 

@@ -72,6 +72,14 @@ Before choosing `middle` or `full` on Vercel, read Vercel's [fair-use guidelines
 
 The check page shows every address Scrapy contacted, so the safe position can be verified instead of trusted.
 
+## Open or closed
+
+On Vercel, Scrapy's public address stays **closed** until its owner sets `SCRAPY_OPEN=1`. A closed Scrapy answers every call with one sentence and contacts nobody. So nobody can find the address and use up the free allowances before the owner has decided who may use it.
+
+Vercel's test addresses are always open. Vercel only shows them to people logged in to the owner's account.
+
+Good to know: Vercel makes the very first deployment of a new project the public one, whichever branch it comes from.
+
 ## Settings
 
 All settings are optional environment variables, and none of them is a key. They are listed with explanations in [.env.example](.env.example): the position, the order of the helpers, helpers to switch off, and the two limits.
@@ -125,6 +133,6 @@ The tests replace the network with stand-ins that answer the way the real helper
 
 ## Hosting
 
-Scrapy is a Next.js app and runs on Vercel's free plan as it is. Import the repository in Vercel; there is nothing to configure.
+Scrapy is a Next.js app and runs on Vercel's free plan as it is. Import the repository in Vercel. It starts closed at its public address; set `SCRAPY_OPEN=1` to open it.
 
 Setting `SCRAPY_BUILD_PROBE=1` makes each Vercel build ask every helper one small thing and write the result into the build log.

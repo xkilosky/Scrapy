@@ -1,4 +1,5 @@
 /** Behind the "Try a tool" box. Runs a tool exactly as the MCP address does, and adds what happened. */
+import { closedResponse, isOpen } from '@/lib/access';
 import { visitorOf } from '@/lib/limits';
 import { runTool } from '@/lib/tools';
 
@@ -7,6 +8,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export async function POST(request: Request): Promise<Response> {
+  if (!isOpen()) return closedResponse();
   let body: { tool?: unknown; args?: unknown };
   try {
     body = (await request.json()) as { tool?: unknown; args?: unknown };

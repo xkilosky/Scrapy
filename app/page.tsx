@@ -10,6 +10,8 @@ import { useEffect, useState } from 'react';
 
 interface Status {
   version: string;
+  open: boolean;
+  message?: string;
   mode: 'safe' | 'middle' | 'full';
   tools: { name: string; title: string }[];
   limits: { visitorPerMinute: number; dailyCalls: number };
@@ -227,6 +229,22 @@ export default function CheckPage() {
   }
 
   const mcpAddress = `${origin}/api/mcp`;
+
+  if (status && !status.open) {
+    return (
+      <main>
+        <div className="top">
+          <h1>Scrapy</h1>
+          <span className="pill warn">closed</span>
+        </div>
+        <p className="lead">Web tools for AI agents: search the web and read pages. Free, with no keys.</p>
+        <section className="card">
+          <h2>This address is closed</h2>
+          <p style={{ marginBottom: 0 }}>{status.message ?? 'Its owner has not opened it yet.'} Nothing can be searched or read from here.</p>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main>

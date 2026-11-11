@@ -1,4 +1,5 @@
 /** A quick look at Scrapy's settings. Contacts nobody. */
+import { CLOSED_TEXT, isOpen } from '@/lib/access';
 import { getMode, limits, pageOrder, searchOrder, switchedOff, VERSION } from '@/lib/config';
 import { getHealth } from '@/lib/health';
 import { getLimiter } from '@/lib/limits';
@@ -9,10 +10,12 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(): Promise<Response> {
+  if (!isOpen()) return Response.json({ name: 'scrapy', version: VERSION, open: false, message: CLOSED_TEXT });
   const off = switchedOff();
   return Response.json({
     name: 'scrapy',
     version: VERSION,
+    open: true,
     mode: getMode(),
     tools: TOOLS.map((t) => ({ name: t.name, title: t.title, description: t.description })),
     search: { order: searchOrder(), engines: SEARCH_ENGINES.map((e) => ({ id: e.id, name: e.name, off: off.has(e.id) })) },
