@@ -7,7 +7,8 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['tests/**/*.test.ts'],
+    // Tests of the pages ask for a browser-like environment themselves, in their first line.
+    include: ['tests/**/*.test.{ts,tsx}'],
     testTimeout: 15_000,
   },
 });

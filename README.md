@@ -70,7 +70,7 @@ One setting, `SCRAPY_MODE`, decides how pages get loaded.
 
 Before choosing `middle` or `full` on Vercel, read Vercel's [fair-use guidelines](https://vercel.com/docs/limits/fair-use-guidelines). They list "Scrapers" under "Never fair use", on every plan. A Scrapy that downloads pages itself is what that rule names. In the `safe` position Scrapy only calls other services' APIs, which the same guidelines list as fair use.
 
-The check page shows every address Scrapy contacted, so the safe position can be verified instead of trusted.
+"Run checks" shows every address Scrapy contacted, so the safe position can be verified instead of trusted.
 
 ## Open or closed
 
@@ -98,10 +98,19 @@ All settings are optional environment variables, and none of them is a key. They
 
 ## The check page
 
-Open Scrapy's address in a browser. The page has two parts:
+Open Scrapy's address in a browser. This page is for the owner, not for agents.
+
+The menu button at the top left opens a drawer with sections. The first section, **Dashboard**, has three parts:
 
 1. **Run checks** asks every helper one small thing, times the tools against their targets, switches the first ways off to prove the fallback works, and lists every address that was contacted.
-2. **Try a tool** runs `search_web` or `fetch_url` exactly as an agent would and shows the answer the agent gets.
+2. **The address for your agent** shows the MCP address to copy, the tools that are ready, and the limits.
+3. **Try a tool** runs `search_web` or `fetch_url` exactly as an agent would and shows the answer the agent gets.
+
+One part shows at a time. Each has its own link (`#checks`, `#address`, `#try`), the back button goes to the part before, and what you typed or checked in one part is still there when you come back to it.
+
+The drawer closes with its close button, with the Escape key, with a click outside it, or when a part is chosen. At an address where Scrapy is closed there is no menu, only the notice.
+
+To add a section or an entry, add it to the list in [app/ui/menu.ts](app/ui/menu.ts) and give it its content in [app/page.tsx](app/page.tsx).
 
 ## Working on Scrapy
 
@@ -123,6 +132,7 @@ The tests replace the network with stand-ins that answer the way the real helper
 | --- | --- |
 | `app/api/mcp/route.ts` | The MCP address. |
 | `app/page.tsx`, `app/api/check`, `app/api/try` | The check page. |
+| `app/ui/` | The menu drawer of the check page, and the list of its sections and entries. |
 | `lib/tools/` | The tools, and the text they answer with. |
 | `lib/search/` | Asking the engines, merging, the copycat-site list. |
 | `lib/page/` | Loading a page, cleaning it, checking it, parts, focus. |

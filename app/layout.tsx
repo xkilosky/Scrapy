@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Scrapy: check page',
+  title: 'Scrapy',
   description: 'Web tools for AI agents: search, read, extract, crawl. Free, no keys.',
   robots: { index: false, follow: false },
 };

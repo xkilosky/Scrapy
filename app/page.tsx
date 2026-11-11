@@ -1,12 +1,21 @@
 'use client';
 
 /**
- * The check page. It is for the owner, not for agents:
+ * The check page. It is for the owner, not for agents. A menu button opens a
+ * drawer with sections (the list is in ui/menu.ts). The first section,
+ * "Dashboard", has three parts:
  * - "Run checks" shows which free helpers answer, how fast the tools are, and
  *   every address Scrapy contacted.
+ * - "The address for your agent" is what an agent connects to.
  * - "Try a tool" runs a tool exactly as an agent would and shows the answer.
+ *
+ * One part shows at a time. Its name is in the page address ("#try"), so the
+ * back button works and a part can be linked to. What was typed or checked in
+ * one part is still there after a visit to another.
  */
 import { useEffect, useState } from 'react';
+import { Drawer } from './ui/Drawer';
+import { FIRST_VIEW, MENU, menuItem, viewFromHash, type ViewId } from './ui/menu';
 
 interface Status {
   version: string;
@@ -102,6 +111,11 @@ function reportAsText(r: CheckReport): string {
   return lines.join('\n');
 }
 
+/** True when Scrapy asked and not one address answered at all: this copy has no way out to the internet. */
+function noInternet(r: CheckReport): boolean {
+  return r.contacts.length > 0 && r.contacts.every((c) => c.status === null);
+}
+
 function CopyButton({ text, label }: { text: string; label: string }) {
   const [done, setDone] = useState(false);
   return (
@@ -152,6 +166,8 @@ function Contacts({ contacts }: { contacts: Contact[] }) {
 export default function CheckPage() {
   const [status, setStatus] = useState<Status | null>(null);
   const [origin, setOrigin] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [view, setView] = useState<ViewId>(FIRST_VIEW);
 
   const [checking, setChecking] = useState(false);
   const [report, setReport] = useState<CheckReport | null>(null);
@@ -177,6 +193,21 @@ export default function CheckPage() {
       .then((s: Status) => setStatus(s))
       .catch(() => setStatus(null));
   }, []);
+
+  // The part that shows follows the page address: "#try" shows "Try a tool".
+  useEffect(() => {
+    setView(viewFromHash(window.location.hash));
+    const follow = () => {
+      setView(viewFromHash(window.location.hash));
+      // A newly chosen part starts at its top, not where the last one was scrolled to.
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener('hashchange', follow);
+    return () => window.removeEventListener('hashchange', follow);
+  }, []);
+
+  const showing = menuItem(view);
+  const closed = status !== null && !status.open;
 
   async function runChecks() {
     setChecking(true);
@@ -233,7 +264,7 @@ export default function CheckPage() {
 
   const mcpAddress = `${origin}/api/mcp`;
 
-  if (status && !status.open) {
+  if (closed) {
     return (
       <main>
         <div className="top">
@@ -250,277 +281,290 @@ export default function CheckPage() {
   }
 
   return (
-    <main>
-      <div className="top">
-        <h1>Scrapy</h1>
-        <div className="row">
-          {status && <span className="pill">version {status.version}</span>}
-          {status && <span className={`pill ${status.mode === 'safe' ? 'good' : 'warn'}`}>position: {status.mode === 'full' ? 'full speed' : status.mode}</span>}
-        </div>
-      </div>
-      <p className="lead">Web tools for AI agents: search the web and read pages. Free, with no keys. This page is for checking that it works.</p>
+    <>
+      <header className="bar">
+        <button type="button" className="icon" aria-label="Open menu" aria-haspopup="dialog" aria-expanded={menuOpen} aria-controls="menu" onClick={() => setMenuOpen(true)}>
+          <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+            <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+          </svg>
+        </button>
+        <span className="brand">Scrapy</span>
+        {status && <span className={`pill bar-end ${status.mode === 'safe' ? 'good' : 'warn'}`}>position: {status.mode === 'full' ? 'full speed' : status.mode}</span>}
+      </header>
+      <Drawer id="menu" open={menuOpen} onClose={() => setMenuOpen(false)} sections={MENU} current={view} foot={status ? `Scrapy version ${status.version}` : undefined} />
 
-      <section className="card">
-        <h2>The address for your agent</h2>
-        <p className="soft">An AI agent connects to this address with MCP and gets the tools.</p>
-        <div className="row">
-          <code className="address">{origin ? mcpAddress : '...'}</code>
-          <CopyButton text={mcpAddress} label="Copy" />
-        </div>
-        {status && (
-          <p className="soft" style={{ marginTop: 12, marginBottom: 0 }}>
-            Tools ready now: {status.tools.map((t) => t.name).join(', ')}. {MODE_TEXT[status.mode]} Limits: {status.limits.visitorPerMinute} calls a minute for each visitor,{' '}
-            {status.limits.dailyCalls.toLocaleString('en-US')} calls a day in total.
-          </p>
-        )}
-      </section>
+      {/* While the menu is open, the page behind it is out of reach. */}
+      <main inert={menuOpen}>
+        <h1>{showing.label}</h1>
+        <p className="lead">{showing.about}</p>
 
-      <section className="card">
-        <div className="row between">
-          <div>
-            <h2>1. Check the free helpers</h2>
-            <p className="soft" style={{ marginBottom: 0 }}>
-              Asks every helper one small thing, times the tools, tries the fallback, and lists every address Scrapy contacted. Takes up to a minute.
-            </p>
-          </div>
-          <button type="button" className="primary" onClick={() => void runChecks()} disabled={checking}>
-            {checking ? 'Checking...' : 'Run checks'}
-          </button>
-        </div>
-        {checkError && <div className="error">{checkError}</div>}
-
-        {report && (
-          <>
-            <h3>Helpers</h3>
-            <div className="scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Helper</th>
-                    <th>Job</th>
-                    <th>Result</th>
-                    <th>Time</th>
-                    <th>What it said</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {report.helpers.map((h) => (
-                    <tr key={`${h.id}-${h.job}`}>
-                      <td>{h.name}</td>
-                      <td>{h.job === 'search' ? 'search' : 'read a page'}</td>
-                      <td>
-                        <span className={`pill ${h.answers ? 'good' : 'bad'}`}>{h.answers ? 'answers' : 'does not answer'}</span>
-                      </td>
-                      <td className="num">{ms(h.ms)}</td>
-                      <td className="note">{h.note}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <h3>Speed</h3>
-            <div className="scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Call</th>
-                    <th>Time</th>
-                    <th>Target</th>
-                    <th>Result</th>
-                    <th>Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {report.speed.map((s) => (
-                    <tr key={s.what}>
-                      <td>{s.what}</td>
-                      <td className="num">{ms(s.ms)}</td>
-                      <td className="num">{ms(s.targetMs)}</td>
-                      <td>
-                        <span className={`pill ${!s.ok ? 'bad' : s.ms <= s.targetMs ? 'good' : 'warn'}`}>{!s.ok ? 'failed' : s.ms <= s.targetMs ? 'on target' : 'slower'}</span>
-                      </td>
-                      <td className="note">{s.note}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <h3>Fallback</h3>
-            <p className="soft">The ways Scrapy uses first are switched off for one search and one page. Both must still work.</p>
-            <div className="scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Check</th>
-                    <th>Result</th>
-                    <th>Time</th>
-                    <th>Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {report.fallback.map((f) => (
-                    <tr key={f.what}>
-                      <td>{f.what}</td>
-                      <td>
-                        <span className={`pill ${f.ok ? 'good' : 'bad'}`}>{f.ok ? 'works' : 'failed'}</span>
-                      </td>
-                      <td className="num">{ms(f.ms)}</td>
-                      <td className="note">{f.note}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <h3>Safe position</h3>
-            <p>
-              <span className={`pill ${!report.safe.applies ? '' : report.safe.ok ? 'good' : 'bad'}`}>{!report.safe.applies ? 'not in use' : report.safe.ok ? 'kept' : 'broken'}</span>{' '}
-              {report.safe.note}
-            </p>
-
-            <h3>Every address contacted ({report.contacts.length} requests)</h3>
-            <Contacts contacts={report.contacts} />
-
-            <div className="row" style={{ marginTop: 16 }}>
-              <CopyButton text={reportAsText(report)} label="Copy results as text" />
-              <span className="soft">
-                Checked {new Date(report.at).toLocaleTimeString()} in {ms(report.tookMs)}
-                {report.region ? `, from Vercel region ${report.region}` : ''}.{report.reused ? ' This is the result of a check from the last two minutes.' : ''}
-              </span>
-            </div>
-          </>
-        )}
-      </section>
-
-      <section className="card">
-        <h2>2. Try a tool</h2>
-        <p className="soft">Runs a tool exactly as an agent would, and shows the answer the agent gets.</p>
-        <div className="row">
-          <button type="button" className={`tab ${tool === 'search_web' ? 'on' : ''}`} onClick={() => setTool('search_web')}>
-            search_web
-          </button>
-          <button type="button" className={`tab ${tool === 'fetch_url' ? 'on' : ''}`} onClick={() => setTool('fetch_url')}>
-            fetch_url
-          </button>
-        </div>
-
-        {tool === 'search_web' ? (
-          <>
-            <label htmlFor="query">Question</label>
-            <input id="query" type="text" value={query} onChange={(e) => setQuery(e.target.value)} />
-            <div className="grid">
+        {view === 'checks' && (
+          <section className="card">
+            <div className="row between">
               <div>
-                <label htmlFor="max">How many results</label>
-                <input id="max" type="number" min={1} max={20} value={maxResults} onChange={(e) => setMaxResults(e.target.value)} />
+                <h2>Check the free helpers</h2>
+                <p className="soft" style={{ marginBottom: 0 }}>Nothing is checked until you press the button. It takes up to a minute.</p>
               </div>
-              <div>
-                <label htmlFor="recency">How recent</label>
-                <select id="recency" value={recency} onChange={(e) => setRecency(e.target.value)}>
-                  <option value="">Any time</option>
-                  <option value="day">Last day</option>
-                  <option value="week">Last week</option>
-                  <option value="month">Last month</option>
-                  <option value="year">Last year</option>
-                </select>
-              </div>
-              <div>
-                <label htmlFor="sites">Only these sites (optional)</label>
-                <input id="sites" type="text" placeholder="react.dev, nextjs.org" value={sites} onChange={(e) => setSites(e.target.value)} />
-              </div>
+              <button type="button" className="primary" onClick={() => void runChecks()} disabled={checking}>
+                {checking ? 'Checking...' : 'Run checks'}
+              </button>
             </div>
-          </>
-        ) : (
-          <>
-            <label htmlFor="url">Link</label>
-            <input id="url" type="text" value={url} onChange={(e) => setUrl(e.target.value)} />
-            <div className="grid">
-              <div>
-                <label htmlFor="format">Format</label>
-                <select id="format" value={format} onChange={(e) => setFormat(e.target.value)}>
-                  <option value="markdown">Markdown</option>
-                  <option value="html">HTML</option>
-                </select>
+            {checkError && <div className="error">{checkError}</div>}
+            {report && noInternet(report) && (
+              <div className="error">
+                None of the addresses Scrapy contacted answered. This copy of Scrapy seems to have no internet access, so nothing can be searched or read from here.
               </div>
-              <div>
-                <label htmlFor="focus">Focus (optional)</label>
-                <input id="focus" type="text" placeholder="rate limits" value={focus} onChange={(e) => setFocus(e.target.value)} />
-              </div>
-              <div>
-                <label htmlFor="part">Part</label>
-                <input id="part" type="number" min={1} value={part} onChange={(e) => setPart(e.target.value)} />
-              </div>
-            </div>
-            <label className="check">
-              <input type="checkbox" checked={browser} onChange={(e) => setBrowser(e.target.checked)} /> Use a real browser
-            </label>
-          </>
-        )}
+            )}
 
-        <div className="row" style={{ marginTop: 16 }}>
-          <button type="button" className="primary" onClick={() => void runTool()} disabled={running}>
-            {running ? 'Running...' : `Run ${tool}`}
-          </button>
-          {run?.trace && (
-            <span className="soft">
-              {ms(run.trace.totalMs)}
-              {run.trace.cache === 'hit' ? ", from Scrapy's memory" : ''}
-            </span>
-          )}
-        </div>
-
-        {run && (
-          <>
-            <h3>{run.ok ? 'What the agent gets' : 'What the agent is told'}</h3>
-            <pre>{run.text}</pre>
-            <div className="row" style={{ marginTop: 10 }}>
-              <CopyButton text={run.text} label="Copy answer" />
-              {!run.ok && <span className="pill bad">{run.reason ?? 'failed'}</span>}
-            </div>
-            {run.trace && run.trace.steps.length > 0 && (
+            {report && (
               <>
-                <h3>What Scrapy tried</h3>
+                <h3>Helpers</h3>
                 <div className="scroll">
                   <table>
                     <thead>
                       <tr>
-                        <th>Way</th>
+                        <th>Helper</th>
+                        <th>Job</th>
                         <th>Result</th>
                         <th>Time</th>
+                        <th>What it said</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {report.helpers.map((h) => (
+                        <tr key={`${h.id}-${h.job}`}>
+                          <td>{h.name}</td>
+                          <td>{h.job === 'search' ? 'search' : 'read a page'}</td>
+                          <td>
+                            <span className={`pill ${h.answers ? 'good' : 'bad'}`}>{h.answers ? 'answers' : 'does not answer'}</span>
+                          </td>
+                          <td className="num">{ms(h.ms)}</td>
+                          <td className="note">{h.note}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <h3>Speed</h3>
+                <div className="scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Call</th>
+                        <th>Time</th>
+                        <th>Target</th>
+                        <th>Result</th>
                         <th>Details</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {run.trace.steps.map((s, i) => (
-                        <tr key={i}>
-                          <td>{s.way}</td>
-                          <td>
-                            <span className={`pill ${s.ok ? 'good' : 'bad'}`}>{s.ok ? 'worked' : 'no'}</span>
-                          </td>
+                      {report.speed.map((s) => (
+                        <tr key={s.what}>
+                          <td>{s.what}</td>
                           <td className="num">{ms(s.ms)}</td>
+                          <td className="num">{ms(s.targetMs)}</td>
+                          <td>
+                            <span className={`pill ${!s.ok ? 'bad' : s.ms <= s.targetMs ? 'good' : 'warn'}`}>{!s.ok ? 'failed' : s.ms <= s.targetMs ? 'on target' : 'slower'}</span>
+                          </td>
                           <td className="note">{s.note}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-              </>
-            )}
-            {run.trace && (
-              <>
-                <h3>Every address contacted</h3>
-                <Contacts contacts={run.trace.contacts} />
-              </>
-            )}
-          </>
-        )}
-      </section>
 
-      <footer>
-        Scrapy is built in stages. Ready now: search_web and fetch_url. Coming next: extract_text, extract_images, extract_design, then deep_crawl and crawl_status.
-        {status?.where.env ? ` Running on Vercel (${status.where.env}${status.where.region ? `, region ${status.where.region}` : ''}).` : ''}
-      </footer>
-    </main>
+                <h3>Fallback</h3>
+                <p className="soft">The ways Scrapy uses first are switched off for one search and one page. Both must still work.</p>
+                <div className="scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Check</th>
+                        <th>Result</th>
+                        <th>Time</th>
+                        <th>Details</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {report.fallback.map((f) => (
+                        <tr key={f.what}>
+                          <td>{f.what}</td>
+                          <td>
+                            <span className={`pill ${f.ok ? 'good' : 'bad'}`}>{f.ok ? 'works' : 'failed'}</span>
+                          </td>
+                          <td className="num">{ms(f.ms)}</td>
+                          <td className="note">{f.note}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <h3>Safe position</h3>
+                <p>
+                  <span className={`pill ${!report.safe.applies ? '' : report.safe.ok ? 'good' : 'bad'}`}>{!report.safe.applies ? 'not in use' : report.safe.ok ? 'kept' : 'broken'}</span>{' '}
+                  {report.safe.note}
+                </p>
+
+                <h3>Every address contacted ({report.contacts.length} requests)</h3>
+                <Contacts contacts={report.contacts} />
+
+                <div className="row" style={{ marginTop: 16 }}>
+                  <CopyButton text={reportAsText(report)} label="Copy results as text" />
+                  <span className="soft">
+                    Checked {new Date(report.at).toLocaleTimeString()} in {ms(report.tookMs)}
+                    {report.region ? `, from Vercel region ${report.region}` : ''}.{report.reused ? ' This is the result of a check from the last two minutes.' : ''}
+                  </span>
+                </div>
+              </>
+            )}
+          </section>
+        )}
+
+        {view === 'address' && (
+          <section className="card">
+            <div className="row">
+              <code className="address">{origin ? mcpAddress : '...'}</code>
+              <CopyButton text={mcpAddress} label="Copy" />
+            </div>
+            {status && (
+              <p className="soft" style={{ marginTop: 12, marginBottom: 0 }}>
+                Tools ready now: {status.tools.map((t) => t.name).join(', ')}. {MODE_TEXT[status.mode]} Limits: {status.limits.visitorPerMinute} calls a minute for each visitor,{' '}
+                {status.limits.dailyCalls.toLocaleString('en-US')} calls a day in total.
+              </p>
+            )}
+          </section>
+        )}
+
+        {view === 'try' && (
+          <section className="card">
+            <div className="row">
+              <button type="button" className={`tab ${tool === 'search_web' ? 'on' : ''}`} onClick={() => setTool('search_web')}>
+                search_web
+              </button>
+              <button type="button" className={`tab ${tool === 'fetch_url' ? 'on' : ''}`} onClick={() => setTool('fetch_url')}>
+                fetch_url
+              </button>
+            </div>
+
+            {tool === 'search_web' ? (
+              <>
+                <label htmlFor="query">Question</label>
+                <input id="query" type="text" value={query} onChange={(e) => setQuery(e.target.value)} />
+                <div className="grid">
+                  <div>
+                    <label htmlFor="max">How many results</label>
+                    <input id="max" type="number" min={1} max={20} value={maxResults} onChange={(e) => setMaxResults(e.target.value)} />
+                  </div>
+                  <div>
+                    <label htmlFor="recency">How recent</label>
+                    <select id="recency" value={recency} onChange={(e) => setRecency(e.target.value)}>
+                      <option value="">Any time</option>
+                      <option value="day">Last day</option>
+                      <option value="week">Last week</option>
+                      <option value="month">Last month</option>
+                      <option value="year">Last year</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="sites">Only these sites (optional)</label>
+                    <input id="sites" type="text" placeholder="react.dev, nextjs.org" value={sites} onChange={(e) => setSites(e.target.value)} />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <label htmlFor="url">Link</label>
+                <input id="url" type="text" value={url} onChange={(e) => setUrl(e.target.value)} />
+                <div className="grid">
+                  <div>
+                    <label htmlFor="format">Format</label>
+                    <select id="format" value={format} onChange={(e) => setFormat(e.target.value)}>
+                      <option value="markdown">Markdown</option>
+                      <option value="html">HTML</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="focus">Focus (optional)</label>
+                    <input id="focus" type="text" placeholder="rate limits" value={focus} onChange={(e) => setFocus(e.target.value)} />
+                  </div>
+                  <div>
+                    <label htmlFor="part">Part</label>
+                    <input id="part" type="number" min={1} value={part} onChange={(e) => setPart(e.target.value)} />
+                  </div>
+                </div>
+                <label className="check">
+                  <input type="checkbox" checked={browser} onChange={(e) => setBrowser(e.target.checked)} /> Use a real browser
+                </label>
+              </>
+            )}
+
+            <div className="row" style={{ marginTop: 16 }}>
+              <button type="button" className="primary" onClick={() => void runTool()} disabled={running}>
+                {running ? 'Running...' : `Run ${tool}`}
+              </button>
+              {run?.trace && (
+                <span className="soft">
+                  {ms(run.trace.totalMs)}
+                  {run.trace.cache === 'hit' ? ", from Scrapy's memory" : ''}
+                </span>
+              )}
+            </div>
+
+            {run && (
+              <>
+                <h3>{run.ok ? 'What the agent gets' : 'What the agent is told'}</h3>
+                <pre>{run.text}</pre>
+                <div className="row" style={{ marginTop: 10 }}>
+                  <CopyButton text={run.text} label="Copy answer" />
+                  {!run.ok && <span className="pill bad">{run.reason ?? 'failed'}</span>}
+                </div>
+                {run.trace && run.trace.steps.length > 0 && (
+                  <>
+                    <h3>What Scrapy tried</h3>
+                    <div className="scroll">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Way</th>
+                            <th>Result</th>
+                            <th>Time</th>
+                            <th>Details</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {run.trace.steps.map((s, i) => (
+                            <tr key={i}>
+                              <td>{s.way}</td>
+                              <td>
+                                <span className={`pill ${s.ok ? 'good' : 'bad'}`}>{s.ok ? 'worked' : 'no'}</span>
+                              </td>
+                              <td className="num">{ms(s.ms)}</td>
+                              <td className="note">{s.note}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+                {run.trace && (
+                  <>
+                    <h3>Every address contacted</h3>
+                    <Contacts contacts={run.trace.contacts} />
+                  </>
+                )}
+              </>
+            )}
+          </section>
+        )}
+
+        <footer>
+          Scrapy is built in stages. Ready now: search_web and fetch_url. Coming next: extract_text, extract_images, extract_design, then deep_crawl and crawl_status.
+          {status?.where.env ? ` Running on Vercel (${status.where.env}${status.where.region ? `, region ${status.where.region}` : ''}).` : ''}
+        </footer>
+      </main>
+    </>
   );
 }

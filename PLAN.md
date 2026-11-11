@@ -54,6 +54,10 @@ The code also has 149 automated tests. They replace the network with stand-ins, 
 - **A second reading for thin pages.** The JavaScript check failed because one helper returned the empty frame of the page as if it were the page. Scrapy now reads a page with very little text once more in a real browser, keeps the fuller result, and remembers that the site needs a browser.
 - **A "Fallback" part on the check page**, so that this check runs live and not only in tests.
 
+**Added after this report, at your request (2026-11-11)**
+
+- **A menu drawer on the check page.** The menu button at the top left opens a drawer with sections. The first section is "Dashboard", with three parts: Run checks, The address for your agent, Try a tool. One part shows at a time. No other section exists yet.
+
 **Numbers I chose**
 
 Tell me if you want any of them changed. Each is one setting.

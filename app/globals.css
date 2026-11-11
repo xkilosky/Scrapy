@@ -29,7 +29,7 @@ body {
 main {
   max-width: 920px;
   margin: 0 auto;
-  padding: 32px 20px 80px;
+  padding: 28px 20px 80px;
 }
 
 h1 {
@@ -66,7 +66,11 @@ p {
 
 .lead {
   color: var(--soft);
-  margin-bottom: 24px;
+  margin: 6px 0 22px;
+}
+
+.top + .lead {
+  margin-top: 0;
 }
 
 .soft {
@@ -222,6 +226,12 @@ button:focus-visible {
   overflow-x: auto;
 }
 
+/* On a narrow screen a table is scrolled sideways. Without this, its last column is
+   squeezed to one letter per line and every row becomes a screen tall. */
+.scroll table {
+  min-width: 600px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -285,4 +295,160 @@ footer {
 
 a {
   color: var(--accent);
+}
+
+/* --- The top bar and the menu drawer --------------------------------------- */
+
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 10px 16px;
+  background: rgba(246, 247, 249, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.bar-end {
+  margin-left: auto;
+}
+
+button.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 10px;
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgba(15, 20, 32, 0.45);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.2s ease,
+    visibility 0s linear 0.2s;
+}
+
+.backdrop.open {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.2s ease;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  width: min(300px, 86vw);
+  overflow-y: auto;
+  /* Scrolling to the end of the menu does not start scrolling the page behind it. */
+  overscroll-behavior: contain;
+  background: var(--card);
+  border-right: 1px solid var(--line);
+  box-shadow: 0 10px 40px rgba(15, 20, 32, 0.18);
+  /* Closed: moved out of sight to the left, and hidden so the keyboard cannot reach it. */
+  transform: translateX(-104%);
+  visibility: hidden;
+  transition:
+    transform 0.22s ease,
+    visibility 0s linear 0.22s;
+}
+
+.drawer.open {
+  transform: none;
+  visibility: visible;
+  transition: transform 0.22s ease;
+}
+
+.drawer:focus {
+  outline: none;
+}
+
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 12px 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.drawer-section {
+  padding: 16px 10px 6px;
+}
+
+.drawer-section h2 {
+  margin: 0 10px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--soft);
+}
+
+.drawer-section ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.drawer-section a {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--ink);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.drawer-section a:hover {
+  background: #f0f2f6;
+}
+
+.drawer-section a[aria-current='page'] {
+  background: #e9eefd;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.drawer-foot {
+  margin-top: auto;
+  padding: 14px 20px 18px;
+  font-size: 13px;
+}
+
+.drawer-section a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* People who asked their device for less motion get the menu without the slide. */
+@media (prefers-reduced-motion: reduce) {
+  .drawer,
+  .drawer.open,
+  .backdrop,
+  .backdrop.open {
+    transition: none;
+  }
 }
