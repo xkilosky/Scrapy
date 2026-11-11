@@ -1,8 +1,66 @@
 # Scrapy: the plan (version 2)
 
-Status: being built. Stage 1 (foundation, search and fetch) is under way, in the safe position. Written 2026-11-11.
+Status: stage 1 of 4 is built and checked on Vercel, in the safe position. One check is left, and it needs you: see the stage 1 report below. Written 2026-11-11.
 
 Version 1 needed two outside accounts and their keys. You answered "We need totally Free no Key Scrapy" and "The best". This version needs no new account, no key and no payment.
+
+## Stage 1 report (2026-11-11)
+
+Stage 1 is built: the MCP address, `search_web`, `fetch_url` and the check page.
+
+**Where it is**
+
+- Test address: https://scrapy-git-arena-4c60da5e-scrapy-flux-cf70.vercel.app . It needs your Vercel login. I checked: without a login it shows Vercel's login page.
+- Public address: https://scrapy-tau.vercel.app . It is closed. It answers "Scrapy is closed at this address" and contacts nobody.
+- The Vercel project is called `scrapy`. Its settings hold one entry, and it is not a key: `SCRAPY_MODE=safe`.
+
+**What the checks showed**
+
+All of this ran on Vercel, in its Washington region, against the real free helpers. It ran on the machine that builds Scrapy, not yet inside the running app. Why that matters is under "What is not proven yet".
+
+| Check from this plan | Result |
+| --- | --- |
+| No keys | Passed. No key exists anywhere. |
+| Helpers | Passed. All five helpers answered for every job, in three runs. A search took Exa 0.7 s, Parallel 0.9 to 1.1 s, Tavily 1.1 s and Firecrawl 1.8 s. |
+| Search | Passed. 8 results with title, link and description, no duplicates, none from the junk list, 2 of them found by both engines. |
+| Fetch, short page | Passed. `https://example.com` came back as Markdown with "Example Domain" and no HTML. |
+| Fetch, long page | Passed. A React documentation page came back as part 1 of 3. That the parts join up exactly is proven by a test. |
+| Fetch, JavaScript page | Failed at first, passed after a fix. See "What I changed". |
+| Fallback | Passed. With Tavily and Exa switched off, search answered through Parallel and Firecrawl. With Jina switched off, the page was loaded by Firecrawl. |
+| Safe position | Passed. 41 requests in one run, all to the five helpers, none to a page's own site. |
+| Safety | Passed. A private address was refused in 8 ms. The speed limit for each visitor is proven by a test. |
+| Speed | See the next table. |
+
+| Call | Target | Measured, in the safe position |
+| --- | --- | --- |
+| Search | 2 to 3 s | 0.6 to 1.1 s |
+| Ordinary page | 5 to 10 s in the safe position | 0.2 to 1.1 s for a tiny page, 2.3 s for a long documentation page |
+| Page that needs a real browser | 5 to 10 s | 0.4 to 1.1 s on a practice page |
+| The same page again | Under 1 s | 0 ms |
+
+These are few measurements, on small and well-known pages. Expect slower answers on heavy pages.
+
+The code also has 149 automated tests. They replace the network with stand-ins, so they run anywhere.
+
+**What is not proven yet**
+
+- **The running app.** The checks ran on Vercel's build machine. The running app sends its requests from other internet addresses, and the free helpers count use by address. This is the one check left, and only you can do it, because the test address needs your login. Open it, press "Run checks", then "Copy results as text", and send me the text.
+- **How much the helpers give for free.** Each run made about 40 requests and nothing was refused. Where the limits are is still unknown.
+
+**What I changed, and why**
+
+- **The public address is closed.** I wrote that Scrapy would get a public address only at the last stage. That was wrong about Vercel. It made the very first deployment the public one, although it came from the test branch. A working Scrapy was public for about a minute and a half before I deleted that deployment. The only request I know of in that time was my own. Scrapy now stays closed at the public address until `SCRAPY_OPEN` is turned on.
+- **Search asks Tavily and Exa first.** With Firecrawl in the first pair a search took 2.7 to 3.8 s. Parallel and Firecrawl are now the fallback.
+- **A second reading for thin pages.** The JavaScript check failed because one helper returned the empty frame of the page as if it were the page. Scrapy now reads a page with very little text once more in a real browser, keeps the fuller result, and remembers that the site needs a browser.
+- **A "Fallback" part on the check page**, so that this check runs live and not only in tests.
+
+**Numbers I chose**
+
+Tell me if you want any of them changed. Each is one setting.
+
+- 30 calls a minute for each visitor, and 1,500 calls a day in total.
+- 59 copycat sites on the junk list. The list is the file `lib/search/junk-sites.ts`.
+- A page with fewer than 500 characters of text gets the second reading.
 
 ## The short version
 
@@ -74,7 +132,7 @@ When a tool cannot do the job, it gives a short plain reason, such as "blocked b
 
 | Job | Scrapy tries first | If that is not enough |
 | --- | --- | --- |
-| Search | Two free search engines at the same time, results merged. The four are Tavily, Firecrawl, Exa and Parallel. | The other two |
+| Search | Two free search engines at the same time, results merged. The four are Tavily, Firecrawl, Exa and Parallel. Tavily and Exa go first: they were the fastest when measured. | The other two |
 | Read a page | Downloads and cleans the page itself | A helper that reads hard pages in a real browser: Firecrawl, Parallel, Tavily, Exa or Jina |
 | Text and images | Works them out from the page it already has | Same as reading a page |
 | Colours and fonts | Firecrawl's real-browser reading of the look, if its no-key door includes it | Scrapy reads the page's style files itself |
@@ -173,15 +231,13 @@ After each stage I report what was built and what the checks showed.
 
 ## What I need from you
 
-**Now:** nothing. The build has started, in the safe position.
+**Now:** one thing. Open https://scrapy-git-arena-4c60da5e-scrapy-flux-cf70.vercel.app and log in to Vercel if it asks. Press "Run checks", wait, press "Copy results as text", and paste the text to me. I cannot open that address myself: it needs your login.
 
-**Later.** I will say exactly when, and where to click.
+**Later.** I will say exactly when.
 
-1. Possibly one click so that Vercel can see this GitHub repository.
-2. Open the check page, press "Run checks", and send me what it shows. The test address is private to your Vercel login, so I cannot open it myself.
-3. Your access decision, before stage 4.
-4. Merge the pull request when you are happy with it.
-5. Tell me how Oryzen connects to MCP servers, or let me look at its code.
+1. Your access decision, before stage 4.
+2. Merge the pull request when you are happy with it.
+3. Tell me how Oryzen connects to MCP servers, or let me look at its code.
 
 ## How we will know it works
 
@@ -204,8 +260,8 @@ After each stage I report what was built and what the checks showed.
 
 ## Things I could not check yet
 
-- **Real web access.** My build environment can only reach GitHub and the package registries. I cannot load web pages or reach the free helpers from it. So I test the cleaning and extraction code here against saved sample pages, and the real end-to-end check runs on the deployed Scrapy.
-- **The free helpers from Vercel.** Each one documents a no-key door. Whether each answers from Vercel's addresses, and how much it gives, only a live call shows. One of them, Exa, says its no-key door refuses some kinds of connection.
+- **Real web access from where I work.** My own environment can only reach GitHub and the package registries. So I test the cleaning and merging code against saved sample pages. The live checks run on Vercel while it builds Scrapy, and I read their results from the build log.
+- **The free helpers from the running app.** All five answered from Vercel's build machine on 2026-11-11. Whether they also answer from the addresses the running app uses, and how much each gives for free, the check page will show.
 - **Firecrawl's look report with no key.** If the no-key door does not include it, `extract_design` uses Scrapy's own reading of the style files, which is less exact.
 - **How strictly Vercel applies its scraper rule** to a small tool.
 - **How Oryzen connects to MCP servers.**

@@ -102,7 +102,7 @@ export function limits(): { visitorPerMinute: number; dailyCalls: number } {
 export const DEFAULT_SEARCH_ORDER = ['tavily', 'exa', 'parallel', 'firecrawl'] as const;
 
 /** Whose description of a page is shown when several engines found it. Best first. */
-export const SNIPPET_ORDER = ['exa', 'tavily', 'firecrawl', 'parallel'] as const;
+export const SNIPPET_ORDER = ['tavily', 'exa', 'firecrawl', 'parallel'] as const;
 export const DEFAULT_PAGE_ORDER = ['jina', 'firecrawl', 'tavily', 'parallel', 'exa'] as const;
 
 /** The order in which search engines are tried. Change with SCRAPY_SEARCH_ORDER=exa,tavily,... */
