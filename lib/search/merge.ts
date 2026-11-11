@@ -108,6 +108,7 @@ export function hostMatchesSite(host: string, site: string): boolean {
 /** A description as one short line of plain text. */
 export function tidySnippet(text: string, max = 300): string {
   const plain = text
+    .replace(/[\u200b\u200c\u200d\ufeff\u00ad]/g, '')
     .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/[#*_`>|]+/g, ' ')
@@ -117,6 +118,22 @@ export function tidySnippet(text: string, max = 300): string {
   const cut = plain.slice(0, max);
   const space = cut.lastIndexOf(' ');
   return `${cut.slice(0, space > max * 0.6 ? space : max).trimEnd()}…`;
+}
+
+/**
+ * The description to show for a page. Engines describe pages differently well,
+ * so the caller gives an order of preference. A description too short to say
+ * anything is passed over.
+ */
+function bestSnippet(snippets: { engine: string; text: string }[], order: readonly string[]): string {
+  const rank = (engine: string): number => {
+    const at = order.indexOf(engine);
+    return at === -1 ? order.length : at;
+  };
+  const tidied = snippets.map((s) => ({ rank: rank(s.engine), text: tidySnippet(s.text) })).filter((s) => s.text !== '');
+  // sort() keeps the engines' own order among equals.
+  tidied.sort((a, b) => a.rank - b.rank);
+  return (tidied.find((s) => s.text.length >= 50) ?? tidied.sort((a, b) => b.text.length - a.text.length)[0])?.text ?? '';
 }
 
 /** A date as YYYY-MM-DD, or undefined when the text is not a date. */
@@ -166,6 +183,8 @@ export interface MergeOptions {
   excludeSites?: string[];
   recency?: Recency;
   now?: number;
+  /** Engine ids, best describer first. The description of the first engine on this list that found the page is shown. */
+  snippetOrder?: readonly string[];
 }
 
 /**
@@ -181,7 +200,7 @@ interface Merged {
   host: string;
   score: number;
   titles: string[];
-  snippets: string[];
+  snippets: { engine: string; text: string }[];
   published?: string;
   engines: string[];
   firstSeen: number;
@@ -226,7 +245,7 @@ export function mergeHits(lists: EngineHits[], opts: MergeOptions): { results: S
       entry.score += 1 / (RANK_K + position);
       entry.engines.push(engine);
       if (hit.title.trim() !== '') entry.titles.push(hit.title.replace(/\s+/g, ' ').trim());
-      if (hit.snippet.trim() !== '') entry.snippets.push(hit.snippet);
+      if (hit.snippet.trim() !== '') entry.snippets.push({ engine, text: hit.snippet });
       entry.published ??= tidyDate(hit.published);
     }
   }
@@ -264,13 +283,11 @@ export function mergeHits(lists: EngineHits[], opts: MergeOptions): { results: S
     }
     if (results.length >= opts.count) continue;
 
-    // The longest description says the most. It is cut to one short line.
-    const snippet = [...entry.snippets].sort((a, b) => b.length - a.length)[0] ?? '';
     results.push({
       rank: results.length + 1,
       url: entry.url,
       title: clip(entry.titles[0] ?? entry.host, 160),
-      snippet: tidySnippet(snippet),
+      snippet: bestSnippet(entry.snippets, opts.snippetOrder ?? []),
       site,
       ...(entry.published ? { published: entry.published } : {}),
       foundBy: [...new Set(entry.engines)],

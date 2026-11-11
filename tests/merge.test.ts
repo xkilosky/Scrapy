@@ -122,7 +122,7 @@ describe('mergeHits', () => {
     expect(mergeHits([{ engine: 'a', hits }], { ...base, count: 5 }).results).toHaveLength(5);
   });
 
-  it('prefers the https form and the fuller description', () => {
+  it('prefers the https form, and passes over a description too short to say anything', () => {
     const { results } = mergeHits(
       [
         { engine: 'a', hits: [hit('http://x.example/p', 'Title A', 'short')] },
@@ -133,6 +133,23 @@ describe('mergeHits', () => {
     expect(results[0]?.url).toBe('https://x.example/p');
     expect(results[0]?.title).toBe('Title A');
     expect(results[0]?.snippet).toBe('a much longer and more useful description of the page');
+  });
+
+  it('shows the description of the engine that describes pages best', () => {
+    const noisy = 'Home / Docs / Guides / Layout / Centering and a long trail of menu words that says nothing about the page itself at all';
+    const clean = 'To center a box, make its parent a flex container and set both alignment properties to center.';
+    const lists = [
+      { engine: 'noisy', hits: [hit('https://x.example/p', 'T', noisy)] },
+      { engine: 'clean', hits: [hit('https://x.example/p', 'T', clean)] },
+    ];
+    expect(mergeHits(lists, { ...base, snippetOrder: ['clean', 'noisy'] }).results[0]?.snippet).toBe(clean);
+    expect(mergeHits(lists, { ...base, snippetOrder: ['noisy', 'clean'] }).results[0]?.snippet).toBe(noisy);
+    // With no preference given, the engines' own order decides.
+    expect(mergeHits(lists, base).results[0]?.snippet).toBe(noisy);
+  });
+
+  it('removes invisible characters from a description', () => {
+    expect(tidySnippet('Why cleanup side-effects? \u200b Cleaning up is a method of removing them.')).toBe('Why cleanup side-effects? Cleaning up is a method of removing them.');
   });
 });
 

@@ -40,7 +40,7 @@ export function parseJina(body: unknown, format: 'markdown' | 'html'): RawPage {
     const bad = pageStatusError(ID, Number(status));
     if (bad) throw bad;
   }
-  const finalUrl = str(data.url);
+  const finalUrl = str(data.finalUrl) ?? str(data.url);
   const common = {
     ...(finalUrl ? { finalUrl } : {}),
     ...(str(data.title) ? { title: str(data.title) } : {}),
@@ -65,7 +65,8 @@ async function load(query: PageQuery, trace: Trace, opts: CallOptions): Promise<
       headers: {
         Accept: 'application/json',
         ...(query.format === 'html' ? { 'X-Respond-With': 'html' } : {}),
-        ...(query.browser ? { 'X-Engine': 'browser' } : {}),
+        // A real browser, and a fresh reading: a stored copy may be the one that was not good enough.
+        ...(query.browser ? { 'X-Engine': 'browser', 'X-No-Cache': 'true' } : {}),
       },
       timeoutMs: opts.timeoutMs,
       signal: opts.signal,

@@ -6,6 +6,9 @@
  *   worked for a site, so the next page from that site starts with it.
  * - It checks its own result. An empty page, a "turn on JavaScript" page or a
  *   block page is not an answer, and the next way is tried.
+ * - A page with very little text may only be the frame of a page that builds
+ *   its content with JavaScript. It is read once more in a real browser, and
+ *   the fuller of the two results is kept.
  * - When a way is slow, the next one is started alongside and the first good
  *   answer wins.
  * - A helper that says "slow down" is rested, and the others carry on.
@@ -22,7 +25,7 @@ import type { PageFormat, PageWay, RawPage } from '../providers/types';
 import { getStore, type Store } from '../store';
 import type { Trace } from '../trace';
 import { cleanPage, tidyFragment } from './clean';
-import { headings, tidyMarkdown } from './markdown';
+import { headings, plainText, tidyMarkdown } from './markdown';
 import { judge } from './quality';
 
 export interface PageDoc {
@@ -171,7 +174,22 @@ function finish(raw: RawPage, requested: URL, format: PageFormat, way: PageWay, 
   };
 }
 
-async function plan(deps: LoadDeps, format: PageFormat, browser: boolean, memoryKey: string): Promise<{ ways: PageWay[]; resting: { id: string; sec: number }[]; remembered: string | null }> {
+/** What Scrapy remembers about a site: which way worked, and whether it took a real browser. */
+interface SiteMemory {
+  way: string;
+  browser: boolean;
+}
+
+async function plan(
+  deps: LoadDeps,
+  format: PageFormat,
+  askedForBrowser: boolean,
+  memoryKey: string,
+): Promise<{ ways: PageWay[]; resting: { id: string; sec: number }[]; remembered: SiteMemory | null; browser: boolean }> {
+  const remembered = await deps.store.get<SiteMemory>(memoryKey);
+  // A site that needed a real browser last time gets one straight away.
+  const browser = askedForBrowser || remembered?.browser === true;
+
   const rank = (id: string): number => {
     const at = deps.order.indexOf(id);
     return at === -1 ? deps.order.length : at;
@@ -185,8 +203,7 @@ async function plan(deps: LoadDeps, format: PageFormat, browser: boolean, memory
   if (deps.mode === 'full' && !browser) ways = [...own, ...helpers];
   else ways = [...helpers, ...own];
 
-  const remembered = await deps.store.get<string>(memoryKey);
-  const favourite = remembered ? ways.find((w) => w.id === remembered) : undefined;
+  const favourite = remembered ? ways.find((w) => w.id === remembered.way) : undefined;
   if (favourite && (!browser || favourite.browser)) ways = [favourite, ...ways.filter((w) => w !== favourite)];
 
   const usable: PageWay[] = [];
@@ -196,7 +213,7 @@ async function plan(deps: LoadDeps, format: PageFormat, browser: boolean, memory
     if (sec > 0) resting.push({ id: way.id, sec });
     else usable.push(way);
   }
-  return { ways: usable, resting, remembered };
+  return { ways: usable, resting, remembered: remembered ?? null, browser };
 }
 
 function explain(attempts: Attempt[], resting: { id: string; sec: number }[], browser: boolean): ScrapyError {
@@ -326,20 +343,22 @@ export async function loadPage(input: LoadInput, trace: Trace, overrides: Partia
   trace.cache = 'miss';
 
   const memoryKey = `site:${format}:${requested.host}`;
-  const { ways, resting, remembered } = await plan(deps, format, browser, memoryKey);
+  const deadline = Date.now() + deps.budgetMs;
+  const planned = await plan(deps, format, browser, memoryKey);
+  const { ways, resting, remembered } = planned;
   for (const r of resting) trace.step(r.id, false, 0, `resting, back ${waitText(r.sec)}`);
   if (ways.length === 0) throw explain([], resting, browser);
 
-  const attempt = async (way: PageWay, signal: AbortSignal): Promise<PageDoc> => {
+  const attempt = async (way: PageWay, signal: AbortSignal, useBrowser: boolean, label: string): Promise<PageDoc> => {
     // Belt and braces for the safe position: the own download must never run in it.
     if (way.own && deps.mode === 'safe') throw new HelperError(way.id, 'refused', 'own download is switched off in the safe position');
     const started = Date.now();
     const id = `${way.id}:page`;
     try {
-      const raw = await way.load({ url: requested.href, format, browser }, trace, { timeoutMs: deps.wayTimeoutMs, signal });
+      const raw = await way.load({ url: requested.href, format, browser: useBrowser }, trace, { timeoutMs: deps.wayTimeoutMs, signal });
       const doc = finish(raw, requested, format, way, Date.now() - started);
       if (!way.own) deps.health.succeeded(id, doc.loadMs);
-      trace.step(way.id, true, doc.loadMs, `${doc.content.length.toLocaleString('en-US')} characters`);
+      trace.step(label, true, doc.loadMs, `${doc.content.length.toLocaleString('en-US')} characters`);
       return doc;
     } catch (err) {
       const error = asHelperError(way.id, err);
@@ -349,23 +368,43 @@ export async function loadPage(input: LoadInput, trace: Trace, overrides: Partia
         else if (error.kind === 'refused') await deps.health.rest(id, 3_600, error.message);
         else if (error.kind === 'unreachable' || error.kind === 'bad_response') await deps.health.failed(id, error.message);
       }
-      trace.step(way.id, false, ms, describeFailure(error));
+      trace.step(label, false, ms, describeFailure(error));
       throw error;
     }
   };
 
-  const { doc, attempts } = await race(ways, attempt, { hedgeAfterMs: deps.hedgeAfterMs, budgetMs: deps.budgetMs });
-  if (!doc) {
-    const failure = explain(attempts, resting, browser);
+  const raced = await race(ways, (way, signal) => attempt(way, signal, planned.browser, way.id), { hedgeAfterMs: deps.hedgeAfterMs, budgetMs: deps.budgetMs });
+  if (!raced.doc) {
+    const failure = explain(raced.attempts, resting, browser);
     if (failure.reason === 'not_found') await deps.store.set(missingKey, { reason: 'not_found', message: failure.message }, 300);
     throw failure;
   }
+  let doc = raced.doc;
+  let usedBrowser = planned.browser;
+
+  // The second reading. Only when no real browser was used yet, the page looks thin, and there is time left.
+  const firstLength = plainText(doc.content).length;
+  const timeLeft = deadline - Date.now();
+  if (!planned.browser && firstLength < PAGE.thinChars && timeLeft > 4_000) {
+    // The way that just answered goes first when it can use a real browser: it is known to be reachable.
+    const browserWay = [...ways].sort((a, b) => Number(b.id === doc.way) - Number(a.id === doc.way)).find((w) => w.browser && !w.own);
+    if (browserWay) {
+      const limit = AbortSignal.timeout(Math.min(PAGE.secondOpinionMs, timeLeft - 2_000));
+      const second = await attempt(browserWay, limit, true, `${browserWay.id}, in a real browser`).catch(() => null);
+      const secondLength = second ? plainText(second.content).length : 0;
+      if (second && secondLength >= Math.max(firstLength * 1.5, firstLength + 200)) {
+        second.notes.push('The first reading had very little text, so the page was read again in a real browser.');
+        doc = second;
+        usedBrowser = true;
+      }
+    }
+  }
 
   await deps.store.set(cacheKey, doc, PAGE.cacheSec);
-  // Remember which way worked for this site, when it was not simply the first on the list.
+  // Remember what worked for this site, when it was not simply the first way on the list.
   const first = ways[0];
-  if (doc.way !== remembered && (remembered !== null || (first && doc.way !== first.id))) {
-    await deps.store.set(memoryKey, doc.way, 24 * 3_600);
-  }
+  const changed = remembered?.way !== doc.way || (remembered?.browser ?? false) !== usedBrowser;
+  const worthIt = remembered !== null || usedBrowser !== browser || (first !== undefined && doc.way !== first.id);
+  if (changed && worthIt) await deps.store.set(memoryKey, { way: doc.way, browser: usedBrowser } satisfies SiteMemory, 24 * 3_600);
   return { doc, cached: false };
 }

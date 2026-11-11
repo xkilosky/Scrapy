@@ -22,10 +22,13 @@ async function helperChecks(): Promise<void> {
   for (const s of report.speed) say(`speed ${s.what}: ${s.ok ? 'ok' : 'FAILED'} ${s.ms}ms (target ${s.targetMs}ms) | ${oneLine(s.note, 320)}`);
   say(`safe position: applies=${report.safe.applies} ok=${report.safe.ok} | ${report.safe.note}`);
   say(`requests: ${report.contacts.length} to ${report.hosts.join(', ')}`);
-  // The start of each helper's raw answer, once per helper and job, to compare with what Scrapy expects.
+  // The start of a helper's raw answer, to compare with what Scrapy expects. Only for helpers
+  // that did not answer, unless SCRAPY_BUILD_PROBE_SAMPLES=1 asks for all of them.
+  const all = process.env.SCRAPY_BUILD_PROBE_SAMPLES === '1';
+  const failed = new Set(report.helpers.filter((h) => !h.answers).map((h) => `${h.id} ${h.job}`));
   const shown = new Set<string>();
   for (const s of report.samples ?? []) {
-    if (shown.has(s.who)) continue;
+    if (shown.has(s.who) || !(all || failed.has(s.who))) continue;
     shown.add(s.who);
     say(`sample ${s.who}: ${oneLine(s.text, 420)}`);
   }
@@ -58,13 +61,14 @@ async function overMcp(): Promise<void> {
     say(`mcp tools: ${tools.map((t) => t.name).join(', ')}`);
     for (const [name, args] of [
       ['search_web', { query: 'react useEffect cleanup function', max_results: 5 }],
-      ['fetch_url', { url: 'https://example.com' }],
+      ['fetch_url', { url: 'https://quotes.toscrape.com/js/' }],
+      ['fetch_url', { url: 'https://react.dev/reference/react/useEffect', focus: 'cleanup function' }],
       ['fetch_url', { url: 'http://169.254.169.254/latest/meta-data/' }],
     ] as const) {
       const started = Date.now();
       const result = await client.callTool({ name, arguments: args });
       const text = (result.content as { text?: string }[]).map((b) => b.text ?? '').join('\n');
-      say(`mcp ${name} ${JSON.stringify(args)}: isError=${result.isError === true} ${Date.now() - started}ms | ${oneLine(text, 900)}`);
+      say(`mcp ${name} ${JSON.stringify(args)}: isError=${result.isError === true} ${Date.now() - started}ms | ${oneLine(text, 520)}`);
     }
     await client.close();
   } finally {

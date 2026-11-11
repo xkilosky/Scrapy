@@ -2,7 +2,7 @@
  * search_web: asks two free search engines at the same time, merges what they
  * found, and falls back to the other engines when that is not enough.
  */
-import { REST, SEARCH, searchOrder, switchedOff } from '../config';
+import { REST, SEARCH, searchOrder, SNIPPET_ORDER, switchedOff } from '../config';
 import { describeFailure, HelperError, ScrapyError, waitText } from '../errors';
 import { getHealth, type Health } from '../health';
 import { SEARCH_ENGINES } from '../providers';
@@ -151,7 +151,7 @@ export async function searchWeb(input: SearchInput, trace: Trace, overrides: Par
   // Each engine is asked for 10 (or 20 for a long list): merging and filtering remove some.
   // Not more, because some helpers charge their free allowance by the number of results.
   const query: SearchQuery = { query: text, count: count <= 10 ? 10 : 20, includeSites, excludeSites, ...(recency ? { recency } : {}) };
-  const mergeOptions = { count, perSite: SEARCH.perSite, junk: deps.junk, includeSites, excludeSites, ...(recency ? { recency } : {}) };
+  const mergeOptions = { count, perSite: SEARCH.perSite, junk: deps.junk, includeSites, excludeSites, snippetOrder: SNIPPET_ORDER, ...(recency ? { recency } : {}) };
 
   const runs: EngineRun[] = [];
   let merged = mergeHits([], mergeOptions);

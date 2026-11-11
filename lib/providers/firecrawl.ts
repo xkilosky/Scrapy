@@ -109,7 +109,8 @@ async function load(query: PageQuery, trace: Trace, opts: CallOptions): Promise<
         blockAds: true,
         removeBase64Images: true,
         timeout: Math.max(5_000, opts.timeoutMs - 3_000),
-        ...(query.browser ? { waitFor: 3_000 } : {}),
+        // Wait for the page's JavaScript, and take a fresh reading instead of a stored one.
+        ...(query.browser ? { waitFor: 3_000, maxAge: 0 } : {}),
       },
       timeoutMs: opts.timeoutMs,
       signal: opts.signal,

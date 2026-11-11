@@ -73,6 +73,10 @@ export const PAGE = {
   maxOwnBytes: 5_000_000,
   /** Pages longer than this are cut, with a note. */
   maxChars: 1_500_000,
+  /** A page with less text than this looks thin, and is read once more in a real browser to be sure. */
+  thinChars: 500,
+  /** How long that second reading may take. */
+  secondOpinionMs: 15_000,
 } as const;
 
 export const REST = {
@@ -90,7 +94,15 @@ export function limits(): { visitorPerMinute: number; dailyCalls: number } {
   };
 }
 
-export const DEFAULT_SEARCH_ORDER = ['tavily', 'firecrawl', 'exa', 'parallel'] as const;
+/**
+ * The first two are asked at once, the other two are the fallback. The order
+ * comes from the first live measurement from Vercel (2026-11-11): Exa 0.7 s,
+ * Parallel 0.9 s, Tavily 1.1 s, Firecrawl 1.8 s and more.
+ */
+export const DEFAULT_SEARCH_ORDER = ['tavily', 'exa', 'parallel', 'firecrawl'] as const;
+
+/** Whose description of a page is shown when several engines found it. Best first. */
+export const SNIPPET_ORDER = ['exa', 'tavily', 'firecrawl', 'parallel'] as const;
 export const DEFAULT_PAGE_ORDER = ['jina', 'firecrawl', 'tavily', 'parallel', 'exa'] as const;
 
 /** The order in which search engines are tried. Change with SCRAPY_SEARCH_ORDER=exa,tavily,... */

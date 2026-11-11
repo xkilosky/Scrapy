@@ -15,6 +15,13 @@ import { setFetch } from '@/lib/http';
 import { HELPER_HOSTS } from '@/lib/providers';
 import { runTool } from '@/lib/tools';
 
+/** What each stand-in answers. Tests change this to simulate trouble. */
+const world = {
+  tavily: 'ok' as 'ok' | 'busy',
+  exa: 'ok' as 'ok' | 'busy',
+  firecrawl: 'ok' as 'ok' | 'busy',
+  jina: 'ok' as 'ok' | 'needs_js' | 'busy',
+};
 const EXA_TEXT = [
   'Title: Fixing hydration errors (Exa)',
   'URL: https://exa-only.example/hydration',
@@ -34,9 +41,11 @@ const EXA_TEXT = [
 ].join('\n');
 
 const exa = createMcpHandler((server) => {
-  server.registerTool('web_search_exa', { description: 'search', inputSchema: z.object({ query: z.string(), numResults: z.number().optional() }) }, async () => ({
-    content: [{ type: 'text' as const, text: EXA_TEXT }],
-  }));
+  server.registerTool('web_search_exa', { description: 'search', inputSchema: z.object({ query: z.string(), numResults: z.number().optional() }) }, async () =>
+    world.exa === 'busy'
+      ? { content: [{ type: 'text' as const, text: "You've hit Exa's free MCP rate limit." }], isError: true, _meta: { 'ai.exa/rateLimited': true } }
+      : { content: [{ type: 'text' as const, text: EXA_TEXT }] },
+  );
   server.registerTool('web_fetch_exa', { description: 'fetch', inputSchema: z.object({ urls: z.array(z.string()), maxCharacters: z.number().optional() }) }, async ({ urls }) => ({
     content: [{ type: 'text' as const, text: `# Page from Exa\nURL: ${urls[0]}\n\n${'Exa read this page and returned its text. '.repeat(8)}` }],
   }));
@@ -67,12 +76,6 @@ const parallel = createMcpHandler((server) => {
   );
 });
 
-/** What each stand-in answers. Tests change this to simulate trouble. */
-const world = {
-  tavily: 'ok' as 'ok' | 'busy',
-  firecrawl: 'ok' as 'ok' | 'busy',
-  jina: 'ok' as 'ok' | 'needs_js' | 'busy',
-};
 const contacted: string[] = [];
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
@@ -93,7 +96,8 @@ beforeAll(() => {
           { title: 'Hydration docs', url: 'https://nextjs.org/docs/messages/react-hydration-error', content: 'Text content does not match server-rendered HTML.', score: 0.98 },
           { title: 'Copied answer', url: 'https://stackoom.com/en/question/123', content: 'A copy of a Stack Overflow answer.', score: 0.7 },
           { title: 'A question on Stack Overflow', url: 'https://stackoverflow.com/questions/1/hydration', content: 'Why do I get a hydration error?', score: 0.6 },
-          { title: 'A blog post', url: 'https://blog.example/hydration', content: 'Five causes of hydration errors.', score: 0.5 },
+          { title: 'A blog post', url: 'https://blog.example/hydration', content: 'Five causes of hydration errors, each with the fix that worked for the author.', score: 0.5 },
+          { title: 'A video', url: 'https://videos.example/watch/hydration', content: 'Hydration errors explained in ten minutes, with a demo project to follow along.', score: 0.4 },
         ],
       });
     }
@@ -113,6 +117,11 @@ beforeAll(() => {
     if (url.host === 'r.jina.ai') {
       if (world.jina === 'busy') return json({ data: null, code: 429, name: 'RateLimitTriggeredError', message: 'Too many requests' }, 429, { 'retry-after': '60' });
       if (world.jina === 'needs_js') return json({ code: 200, data: { title: 'App', url: 'https://example.com/', content: 'You need to enable JavaScript to run this app.' } });
+      if (url.pathname.endsWith('/js/')) {
+        const inBrowser = new Headers(init?.headers).get('x-engine') === 'browser';
+        const quotes = '"The world as we have created it is a process of our thinking." by Albert Einstein. '.repeat(8);
+        return json({ code: 200, data: { title: 'Quotes to Scrape', url: 'https://quotes.example/js/', content: inBrowser ? `Quotes to Scrape\n\n${quotes}` : 'Quotes to Scrape\n\nLogin\n\nQuotes by GoodReads. Made with love.' } });
+      }
       return json({ code: 200, status: 20000, data: { title: 'Example Domain', url: 'https://example.com/', content: 'Example Domain\n==============\n\nThis domain is for use in documentation examples without needing permission. Avoid use in operations.\n\n[Learn more](https://iana.org/domains/example)' } });
     }
     if (path === 'api.firecrawl.dev/v2/scrape') {
@@ -126,6 +135,7 @@ afterAll(() => setFetch(null));
 
 beforeEach(() => {
   world.tavily = 'ok';
+  world.exa = 'ok';
   world.firecrawl = 'ok';
   world.jina = 'ok';
   contacted.length = 0;
@@ -164,26 +174,28 @@ describe("Scrapy's MCP address", () => {
     const client = await connect();
     const { text, isError } = await call(client, 'search_web', { query: 'next.js hydration error fix' });
     expect(isError).toBe(false);
-    expect(text).toMatch(/^5 results for "next\.js hydration error fix" \(asked tavily and firecrawl, /);
-    expect(text).toContain('1. Hydration docs\n   https://nextjs.org/docs/messages/react-hydration-error\n   Text content does not match server-rendered HTML.\n   (found by tavily and firecrawl)');
+    expect(text).toMatch(/^5 results for "next\.js hydration error fix" \(asked tavily and exa, /);
+    expect(text).toContain('1. Hydration docs\n   https://nextjs.org/docs/messages/react-hydration-error\n   Text content does not match server-rendered HTML.\n   (found by tavily and exa)');
     expect(text.match(/react-hydration-error/g)).toHaveLength(1);
     expect(text).not.toContain('stackoom');
     expect(text).toContain('https://stackoverflow.com/questions/1/hydration');
     expect(text).toContain('Left out: 1 duplicate, 1 result from a copycat site.');
-    expect([...new Set(contacted)].sort()).toEqual(['api.firecrawl.dev', 'api.tavily.com']);
+    expect(text).toContain('https://exa-only.example/hydration');
+    expect(text).toContain('published 2026-02-01');
+    expect([...new Set(contacted)].sort()).toEqual(['api.tavily.com', 'mcp.exa.ai']);
     await client.close();
   });
 
-  it('search_web: with the first two engines busy, the other two answer (through their MCP servers)', async () => {
+  it('search_web: with the first two engines busy, the other two answer', async () => {
     world.tavily = 'busy';
-    world.firecrawl = 'busy';
+    world.exa = 'busy';
     const client = await connect();
     const { text, isError } = await call(client, 'search_web', { query: 'hydration mismatch after upgrade to the newest version of the framework' });
     expect(isError).toBe(false);
-    expect(text).toMatch(/\(asked exa and parallel, /);
+    expect(text).toMatch(/\(asked parallel and firecrawl, /);
     expect(text).toContain('1. Hydration docs\n   https://nextjs.org/docs/messages/react-hydration-error');
-    expect(text).toContain('found by exa and parallel');
-    expect(text).toContain('https://exa-only.example/hydration');
+    expect(text).toContain('found by parallel and firecrawl');
+    expect(text).toContain('https://react.dev/reference/react-dom/client/hydrateRoot');
     expect(text).toContain('https://parallel-only.example/guide');
     expect(text).toContain('published 2026-01-15');
     // Parallel wants short keyword queries next to the full question.
@@ -199,7 +211,8 @@ describe("Scrapy's MCP address", () => {
     expect(isError).toBe(false);
     expect(text).toMatch(/^Title: Example Domain\nURL: https:\/\/example\.com\/\nLoaded: by Jina Reader in \d+\.\d s\n\n---\n\n# Example Domain\n\nThis domain is for use in documentation examples/);
     expect(text).not.toMatch(/<[a-z]+[\s>]|={3,}/);
-    expect(contacted).toEqual(['r.jina.ai']);
+    // A page this small is read once more in a real browser, to be sure nothing is missing.
+    expect(contacted).toEqual(['r.jina.ai', 'r.jina.ai']);
 
     contacted.length = 0;
     const again = await call(client, 'fetch_url', { url: 'https://example.com' });
@@ -215,6 +228,15 @@ describe("Scrapy's MCP address", () => {
     expect(isError).toBe(false);
     expect(text).toContain('Loaded: by Firecrawl in');
     expect(text).toContain('Firecrawl read this page in a real browser.');
+    await client.close();
+  });
+
+  it('fetch_url: a page that shows almost nothing without JavaScript comes back with its real content', async () => {
+    const client = await connect();
+    const { text, isError } = await call(client, 'fetch_url', { url: 'https://quotes.example/js/' });
+    expect(isError).toBe(false);
+    expect(text).toContain('Albert Einstein');
+    expect(text).toContain('Note: The first reading had very little text, so the page was read again in a real browser.');
     await client.close();
   });
 

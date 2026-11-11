@@ -7,7 +7,10 @@ import { createMemoryStore } from '../lib/store';
 import { Trace } from '../lib/trace';
 import { fetchUrl } from '../lib/tools/fetchUrl';
 
-const BODY = 'This is a real paragraph with real content about the topic of the page. '.repeat(6);
+const BODY = 'This is a real paragraph with real content about the topic of the page. '.repeat(12);
+/** Enough text to be a page, but so little that Scrapy reads it once more in a real browser to be sure. */
+const THIN: RawPage = { title: 'Quotes', markdown: '# Quotes to Scrape\n\nLogin\n\nQuotes by GoodReads. Made with love by the team.' };
+const FULL: RawPage = { title: 'Quotes', markdown: `# Quotes to Scrape\n\n${'"The world as we have created it is a process of our thinking." by Albert Einstein. '.repeat(10)}` };
 const GOOD: RawPage = { title: 'Good page', markdown: `# Good page\n\n${BODY}`, finalUrl: 'https://site.example/page' };
 const NEEDS_JS: RawPage = { title: 'App', markdown: 'You need to enable JavaScript to run this app.' };
 
@@ -15,7 +18,9 @@ interface Fake extends PageWay {
   calls: PageQuery[];
 }
 
-function way(id: string, answer: RawPage | HelperError, opts: { delayMs?: number; browser?: boolean; own?: boolean; formats?: ('markdown' | 'html')[] } = {}): Fake {
+type Answer = RawPage | HelperError | ((query: PageQuery) => RawPage | HelperError);
+
+function way(id: string, given: Answer, opts: { delayMs?: number; browser?: boolean; own?: boolean; formats?: ('markdown' | 'html')[] } = {}): Fake {
   const calls: PageQuery[] = [];
   return {
     id,
@@ -36,6 +41,7 @@ function way(id: string, answer: RawPage | HelperError, opts: { delayMs?: number
           });
         });
       }
+      const answer = typeof given === 'function' ? given(query) : given;
       if (answer instanceof HelperError) throw answer;
       return answer;
     },
@@ -195,6 +201,61 @@ describe('loadPage', () => {
     expect(doc.way).toBe('browser');
     expect(browser.calls[0]?.browser).toBe(true);
     expect(plain.calls).toHaveLength(0);
+  });
+});
+
+describe('the second reading of a thin page', () => {
+  it('reads a page with very little text once more in a real browser, and keeps the fuller result', async () => {
+    const reader = way('reader', (q) => (q.browser ? FULL : THIN), { browser: true });
+    const trace = new Trace();
+    const shared = deps([reader]);
+    const { doc } = await loadPage({ url: 'https://quotes.example/js/' }, trace, shared);
+    expect(reader.calls.map((c) => c.browser)).toEqual([false, true]);
+    expect(doc.content).toContain('Albert Einstein');
+    expect(doc.notes).toEqual(['The first reading had very little text, so the page was read again in a real browser.']);
+    expect(trace.steps.map((s) => `${s.way}:${s.ok}`)).toEqual(['reader:true', 'reader, in a real browser:true']);
+
+    // The site is remembered: its next page is read in a real browser straight away.
+    await loadPage({ url: 'https://quotes.example/js/page/2/' }, new Trace(), shared);
+    expect(reader.calls.map((c) => c.browser)).toEqual([false, true, true]);
+  });
+
+  it('asks another helper when the first one has no real browser', async () => {
+    const plain = way('plain', THIN);
+    const browser = way('browser', FULL, { browser: true });
+    const { doc } = await loadPage({ url: 'https://quotes.example/js/' }, new Trace(), deps([plain, browser]));
+    expect(doc.way).toBe('browser');
+    expect(browser.calls[0]?.browser).toBe(true);
+  });
+
+  it('keeps the first result when the real browser finds nothing more, or fails', async () => {
+    const same = way('same', THIN, { browser: true });
+    const first = await loadPage({ url: 'https://small.example/' }, new Trace(), deps([same]));
+    expect(same.calls).toHaveLength(2);
+    expect(first.doc.content).toContain('Quotes by GoodReads');
+    expect(first.doc.notes).toEqual([]);
+
+    const flaky = way('flaky', (q) => (q.browser ? new HelperError('flaky', 'timeout', 'no answer') : THIN), { browser: true });
+    const second = await loadPage({ url: 'https://small.example/' }, new Trace(), deps([flaky]));
+    expect(second.doc.content).toContain('Quotes by GoodReads');
+  });
+
+  it('does not read twice when the page has enough text, or when a real browser was asked for', async () => {
+    const reader = way('reader', GOOD, { browser: true });
+    await loadPage({ url: 'https://site.example/a' }, new Trace(), deps([reader]));
+    expect(reader.calls).toHaveLength(1);
+
+    const thin = way('thin', THIN, { browser: true });
+    await loadPage({ url: 'https://small.example/', browser: true }, new Trace(), deps([thin]));
+    expect(thin.calls).toHaveLength(1);
+  });
+
+  it('never uses its own download for the second reading', async () => {
+    const own = way('own', FULL, { own: true, browser: false });
+    const plain = way('plain', THIN);
+    const { doc } = await loadPage({ url: 'https://small.example/' }, new Trace(), deps([plain], { own, mode: 'safe' }));
+    expect(doc.way).toBe('plain');
+    expect(own.calls).toHaveLength(0);
   });
 });
 

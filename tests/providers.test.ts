@@ -99,7 +99,7 @@ describe('Firecrawl', () => {
     const seen = answerWith(200, { success: true, data: { markdown: '# Example Domain\n\nText.', metadata: { title: 'Example Domain', statusCode: 200, url: 'https://example.com/', language: 'en' } } });
     const page = await firecrawlPage.load({ url: 'https://example.com/', format: 'markdown', browser: true }, new Trace(), opts);
     expect(page).toMatchObject({ markdown: '# Example Domain\n\nText.', title: 'Example Domain', finalUrl: 'https://example.com/', status: 200, language: 'en' });
-    expect(seen[0]?.body).toMatchObject({ url: 'https://example.com/', formats: ['markdown'], onlyMainContent: true, blockAds: true, waitFor: 3000 });
+    expect(seen[0]?.body).toMatchObject({ url: 'https://example.com/', formats: ['markdown'], onlyMainContent: true, blockAds: true, waitFor: 3000, maxAge: 0 });
   });
 
   it('reports the allowance being used up, with the wait', async () => {
@@ -134,6 +134,7 @@ describe('Jina Reader', () => {
     const page = await jinaPage.load({ url: 'https://example.com/', format: 'html', browser: true }, new Trace(), opts);
     expect(page.rawHtml).toContain('<p>Hi</p>');
     expect(seen[0]?.headers.get('x-engine')).toBe('browser');
+    expect(seen[0]?.headers.get('x-no-cache')).toBe('true');
     expect(seen[0]?.headers.get('x-respond-with')).toBe('html');
   });
 
@@ -205,6 +206,14 @@ describe('Parallel answers', () => {
       { url: 'https://css.example/flexbox', title: 'A page about flexbox', snippet: 'Centering with flexbox takes two lines.' },
       { url: 'https://css.example/grid', title: 'Grid guide', snippet: 'Grid is for two dimensions.' },
     ]);
+  });
+
+  it('skips the menu trail at the start of a description, but keeps a page whole', () => {
+    const excerpt = 'Home\n2. / How To\n3. / CSS\nCSS 6 min read\n\nCentering a div takes two lines of CSS once the parent is a flex container, and it works in every browser.';
+    const hits = parseParallelSearch(answer(JSON.stringify({ results: [{ url: 'https://css.example/center', title: 'Center a div', excerpts: [excerpt] }] })));
+    expect(hits[0]?.snippet).toBe('Centering a div takes two lines of CSS once the parent is a flex container, and it works in every browser.');
+    const page = parseParallelPage(answer(JSON.stringify({ results: [{ url: 'https://css.example/center', title: 'Center a div', excerpts: [excerpt] }] })));
+    expect(page.markdown).toBe(excerpt);
   });
 
   it('reads a page, and a page error', () => {

@@ -53,9 +53,20 @@ function toolFailure(answer: RemoteAnswer): HelperError {
   return new HelperError(ID, 'failed', clip(text || 'Parallel reported an error', 160));
 }
 
+/**
+ * Parallel's excerpts are the page's text from the top, so they often start
+ * with the menu trail ("Home", "2. / How To", "6 min read"). Those short lines
+ * are skipped until the first real sentence.
+ */
+function withoutLeadIn(excerpt: string): string {
+  const lines = excerpt.split('\n');
+  const start = lines.findIndex((line) => line.trim().length >= 60);
+  return start > 0 ? lines.slice(start).join('\n') : excerpt;
+}
+
 function snippetOf(r: Record<string, unknown>): string {
   const excerpts = arr(r.excerpts).filter((e): e is string => typeof e === 'string');
-  if (excerpts.length > 0) return excerpts.join(' … ');
+  if (excerpts.length > 0) return excerpts.map(withoutLeadIn).join(' … ');
   return str(r.excerpt) ?? str(r.snippet) ?? str(r.description) ?? str(r.content) ?? str(r.text) ?? '';
 }
 
@@ -145,7 +156,8 @@ export function parseParallelPage(answer: RemoteAnswer): RawPage {
     const failed = obj(arr(root.errors)[0]);
     const first = obj(arr(root.results)[0]) ?? obj(arr(obj(root.data)?.results)[0]);
     if (first) {
-      const content = str(first.full_content) ?? str(first.content) ?? str(first.markdown) ?? (arr(first.excerpts).length > 0 ? snippetOf(first) : undefined);
+      const excerpts = arr(first.excerpts).filter((e): e is string => typeof e === 'string');
+      const content = str(first.full_content) ?? str(first.content) ?? str(first.markdown) ?? (excerpts.length > 0 ? excerpts.join('\n\n') : undefined);
       if (content) {
         const published = str(first.publish_date) ?? str(first.published_date);
         return {
