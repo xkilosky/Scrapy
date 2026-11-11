@@ -21,8 +21,14 @@ async function helperChecks(): Promise<void> {
   for (const h of report.helpers) say(`helper ${h.id} ${h.job}: ${h.answers ? 'ANSWERS' : 'NO ANSWER'} ${h.ms}ms | ${oneLine(h.note, 260)}`);
   for (const s of report.speed) say(`speed ${s.what}: ${s.ok ? 'ok' : 'FAILED'} ${s.ms}ms (target ${s.targetMs}ms) | ${oneLine(s.note, 320)}`);
   say(`safe position: applies=${report.safe.applies} ok=${report.safe.ok} | ${report.safe.note}`);
-  for (const c of report.contacts) say(`contact ${c.purpose}: ${c.method} ${c.address} -> ${c.status ?? c.note ?? 'none'} ${c.ms}ms`);
-  for (const s of report.samples ?? []) say(`sample ${s.who}: ${oneLine(s.text, 520)}`);
+  say(`requests: ${report.contacts.length} to ${report.hosts.join(', ')}`);
+  // The start of each helper's raw answer, once per helper and job, to compare with what Scrapy expects.
+  const shown = new Set<string>();
+  for (const s of report.samples ?? []) {
+    if (shown.has(s.who)) continue;
+    shown.add(s.who);
+    say(`sample ${s.who}: ${oneLine(s.text, 420)}`);
+  }
 }
 
 async function waitUntilUp(url: string, ms: number): Promise<boolean> {
