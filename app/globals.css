@@ -227,7 +227,8 @@ button:focus-visible {
 }
 
 /* On a narrow screen a table is scrolled sideways. Without this, its last column is
-   squeezed to one letter per line and every row becomes a screen tall. */
+   squeezed to a few letters per line, and every row becomes several times taller than
+   it needs to be. */
 .scroll table {
   min-width: 600px;
 }
