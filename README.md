@@ -48,9 +48,9 @@ For an agent that only supports local MCP servers:
 
 **No keys.** Scrapy uses free services that officially offer a door with no key: Tavily, Firecrawl, Exa, Parallel and Jina Reader. This README calls them helpers. Their free allowances are small and not published, so Scrapy keeps several for each job.
 
-**Search.** Two search engines are asked at the same time and their results are merged. A page that both found is listed once and ranked first. Results from copycat sites are removed, and no more than three results come from one site. If the first two engines fail or find too little, the other two are asked.
+**Search.** Two search engines are asked at the same time (Tavily and Exa, the two fastest when measured) and their results are merged. A page that both found is listed once and ranked first. Results from copycat sites are removed, and no more than three results come from one site. If the first two engines fail or find too little, the other two (Parallel and Firecrawl) are asked.
 
-**Reading a page.** Scrapy tries the ways of loading a page in order and checks each result itself. A page that came back empty, that only says "turn on JavaScript", or that is a block page is not an answer, and the next way is tried. When a way is slow, the next one is started alongside and the first good answer wins. Scrapy remembers which way worked for a site.
+**Reading a page.** Scrapy tries the ways of loading a page in order and checks each result itself. A page that came back empty, that only says "turn on JavaScript", or that is a block page is not an answer, and the next way is tried. A page with very little text may only be the frame of a page that builds its content with JavaScript, so it is read once more in a real browser and the fuller result is kept. When a way is slow, the next one is started alongside and the first good answer wins. Scrapy remembers which way worked for a site, and whether the site needed a real browser.
 
 **Resting.** A helper that says "slow down" is left alone for as long as it asked, and the others carry on.
 
@@ -100,7 +100,7 @@ All settings are optional environment variables, and none of them is a key. They
 
 Open Scrapy's address in a browser. The page has two parts:
 
-1. **Run checks** asks every helper one small thing, times the tools against their targets, and lists every address that was contacted.
+1. **Run checks** asks every helper one small thing, times the tools against their targets, switches the first ways off to prove the fallback works, and lists every address that was contacted.
 2. **Try a tool** runs `search_web` or `fetch_url` exactly as an agent would and shows the answer the agent gets.
 
 ## Working on Scrapy

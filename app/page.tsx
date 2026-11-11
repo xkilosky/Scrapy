@@ -53,6 +53,7 @@ interface CheckReport {
   region: string | null;
   helpers: HelperCheck[];
   speed: SpeedCheck[];
+  fallback: { what: string; ok: boolean; ms: number; note: string }[];
   safe: { applies: boolean; ok: boolean; note: string };
   hosts: string[];
   contacts: Contact[];
@@ -91,6 +92,8 @@ function reportAsText(r: CheckReport): string {
   for (const h of r.helpers) lines.push(`- ${h.id} (${h.job}): ${h.answers ? 'answers' : 'DOES NOT ANSWER'}, ${ms(h.ms)}. ${h.note}`);
   lines.push('', 'SPEED');
   for (const s of r.speed) lines.push(`- ${s.what}: ${s.ok ? ms(s.ms) : 'FAILED'} (target ${ms(s.targetMs)}). ${s.note}`);
+  lines.push('', 'FALLBACK');
+  for (const f of r.fallback) lines.push(`- ${f.what}: ${f.ok ? 'works' : 'FAILED'}, ${ms(f.ms)}. ${f.note}`);
   lines.push('', `SAFE POSITION: ${r.safe.applies ? (r.safe.ok ? 'ok' : 'PROBLEM') : 'not in use'}. ${r.safe.note}`);
   lines.push('', 'ADDRESSES CONTACTED');
   const perHost = new Map<string, number>();
@@ -277,7 +280,7 @@ export default function CheckPage() {
           <div>
             <h2>1. Check the free helpers</h2>
             <p className="soft" style={{ marginBottom: 0 }}>
-              Asks every helper one small thing, times the tools, and lists every address Scrapy contacted. Takes up to a minute.
+              Asks every helper one small thing, times the tools, tries the fallback, and lists every address Scrapy contacted. Takes up to a minute.
             </p>
           </div>
           <button type="button" className="primary" onClick={() => void runChecks()} disabled={checking}>
@@ -338,6 +341,33 @@ export default function CheckPage() {
                         <span className={`pill ${!s.ok ? 'bad' : s.ms <= s.targetMs ? 'good' : 'warn'}`}>{!s.ok ? 'failed' : s.ms <= s.targetMs ? 'on target' : 'slower'}</span>
                       </td>
                       <td className="note">{s.note}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <h3>Fallback</h3>
+            <p className="soft">The ways Scrapy uses first are switched off for one search and one page. Both must still work.</p>
+            <div className="scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Check</th>
+                    <th>Result</th>
+                    <th>Time</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.fallback.map((f) => (
+                    <tr key={f.what}>
+                      <td>{f.what}</td>
+                      <td>
+                        <span className={`pill ${f.ok ? 'good' : 'bad'}`}>{f.ok ? 'works' : 'failed'}</span>
+                      </td>
+                      <td className="num">{ms(f.ms)}</td>
+                      <td className="note">{f.note}</td>
                     </tr>
                   ))}
                 </tbody>

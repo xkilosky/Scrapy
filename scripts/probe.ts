@@ -17,11 +17,12 @@ const oneLine = (text: string, max: number): string => text.replace(/\s*\n\s*/g,
 
 async function helperChecks(): Promise<void> {
   const report = await runChecks({ debug: true });
-  say(`position=${report.mode} region=${report.region ?? 'unknown'} took=${report.tookMs}ms`);
-  for (const h of report.helpers) say(`helper ${h.id} ${h.job}: ${h.answers ? 'ANSWERS' : 'NO ANSWER'} ${h.ms}ms | ${oneLine(h.note, 260)}`);
-  for (const s of report.speed) say(`speed ${s.what}: ${s.ok ? 'ok' : 'FAILED'} ${s.ms}ms (target ${s.targetMs}ms) | ${oneLine(s.note, 320)}`);
+  // A few dense lines instead of many short ones: the build log is read through a narrow window.
+  say(`position=${report.mode} took=${report.tookMs}ms requests=${report.contacts.length} hosts=${report.hosts.join(',')}`);
+  say(`helpers: ${report.helpers.map((h) => `${h.id}/${h.job} ${h.answers ? `OK ${h.ms}ms` : `NO ANSWER ${h.ms}ms (${oneLine(h.note, 110)})`}`).join('; ')}`);
+  say(`speed: ${report.speed.map((s) => `${s.what}: ${s.ok ? 'ok' : 'FAILED'} ${s.ms}ms of ${s.targetMs}ms (${oneLine(s.note, 130)})`).join('; ')}`);
+  say(`fallback: ${report.fallback.map((f) => `${f.what}: ${f.ok ? 'works' : 'FAILED'} ${f.ms}ms (${oneLine(f.note, 130)})`).join('; ')}`);
   say(`safe position: applies=${report.safe.applies} ok=${report.safe.ok} | ${report.safe.note}`);
-  say(`requests: ${report.contacts.length} to ${report.hosts.join(', ')}`);
   // The start of a helper's raw answer, to compare with what Scrapy expects. Only for helpers
   // that did not answer, unless SCRAPY_BUILD_PROBE_SAMPLES=1 asks for all of them.
   const all = process.env.SCRAPY_BUILD_PROBE_SAMPLES === '1';
@@ -59,16 +60,22 @@ async function overMcp(): Promise<void> {
     await client.connect(new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${PORT}/api/mcp`)));
     const { tools } = await client.listTools();
     say(`mcp tools: ${tools.map((t) => t.name).join(', ')}`);
-    for (const [name, args] of [
-      ['search_web', { query: 'react useEffect cleanup function', max_results: 5 }],
-      ['fetch_url', { url: 'https://quotes.toscrape.com/js/' }],
-      ['fetch_url', { url: 'https://react.dev/reference/react/useEffect', focus: 'cleanup function' }],
-      ['fetch_url', { url: 'http://169.254.169.254/latest/meta-data/' }],
-    ] as const) {
+    // A different question in every build, so the search is done for real and not answered from memory.
+    const questions = ['react useEffect cleanup function', 'css grid vs flexbox when to use', 'typescript satisfies operator example', 'node fetch timeout AbortController', 'postgres upsert on conflict example'];
+    const pick = Number.parseInt((process.env.VERCEL_GIT_COMMIT_SHA ?? '0').slice(0, 6), 16) || 0;
+    const calls: [string, Record<string, unknown>, number][] = [
+      ['search_web', { query: questions[pick % questions.length] ?? 'react useEffect cleanup function', max_results: 5 }, 620],
+      ['fetch_url', { url: 'https://quotes.toscrape.com/js/' }, 300],
+      ['fetch_url', { url: 'https://react.dev/reference/react/useEffect', focus: 'cleanup function' }, 420],
+      // The same long page without a focus: it must come back in numbered parts.
+      ['fetch_url', { url: 'https://react.dev/reference/react/useEffect' }, 330],
+      ['fetch_url', { url: 'http://169.254.169.254/latest/meta-data/' }, 200],
+    ];
+    for (const [name, args, show] of calls) {
       const started = Date.now();
       const result = await client.callTool({ name, arguments: args });
       const text = (result.content as { text?: string }[]).map((b) => b.text ?? '').join('\n');
-      say(`mcp ${name} ${JSON.stringify(args)}: isError=${result.isError === true} ${Date.now() - started}ms | ${oneLine(text, 520)}`);
+      say(`mcp ${name} ${JSON.stringify(args)}: isError=${result.isError === true} ${Date.now() - started}ms ${text.length} chars | ${oneLine(text, show)}`);
     }
     await client.close();
   } finally {

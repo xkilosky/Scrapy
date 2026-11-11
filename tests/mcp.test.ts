@@ -11,6 +11,7 @@ import { createMcpHandler } from 'mcp-handler';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { POST } from '@/app/api/mcp/route';
+import { runChecks } from '@/lib/check';
 import { setFetch } from '@/lib/http';
 import { HELPER_HOSTS } from '@/lib/providers';
 import { runTool } from '@/lib/tools';
@@ -262,5 +263,47 @@ describe('the safe position', () => {
     for (const host of hosts) expect(HELPER_HOSTS, host).toContain(host);
     expect(hosts).not.toContain('example.com');
     expect(page.trace.contacts.every((c) => c.purpose !== 'own download')).toBe(true);
+  });
+});
+
+describe('the checks behind "Run checks"', () => {
+  it('report every helper, the speed, the fallback and the safe position', async () => {
+    const report = await runChecks();
+    expect(report.mode).toBe('safe');
+    expect(report.helpers.map((h) => `${h.id}/${h.job}`)).toEqual([
+      'tavily/search',
+      'firecrawl/search',
+      'exa/search',
+      'parallel/search',
+      'jina/page',
+      'firecrawl/page',
+      'tavily/page',
+      'parallel/page',
+      'exa/page',
+    ]);
+    const answers = (id: string, job: string): boolean => report.helpers.find((h) => h.id === id && h.job === job)?.answers === true;
+    expect(answers('tavily', 'search')).toBe(true);
+    expect(answers('exa', 'search')).toBe(true);
+    expect(answers('parallel', 'search')).toBe(true);
+    expect(answers('jina', 'page')).toBe(true);
+    // The stand-in world has no Tavily page reader. The check must say so, not break.
+    expect(answers('tavily', 'page')).toBe(false);
+
+    expect(report.speed.map((s) => `${s.what}: ${s.ok}`)).toEqual([
+      'search_web: true',
+      'fetch_url, ordinary page: true',
+      'fetch_url, same page again: true',
+      'fetch_url, page that needs JavaScript: true',
+    ]);
+    expect(report.speed[0]?.note).toMatch(/results from tavily \+ exa/);
+    expect(report.speed[3]?.note).toMatch(/content built by JavaScript is there/);
+
+    expect(report.fallback).toHaveLength(2);
+    expect(report.fallback[0]).toMatchObject({ what: 'search_web with tavily and exa switched off', ok: true });
+    expect(report.fallback[0]?.note).toMatch(/results from parallel \+ firecrawl/);
+    expect(report.fallback[1]).toMatchObject({ what: 'fetch_url with jina switched off', ok: true, note: 'loaded by Firecrawl' });
+
+    expect(report.safe).toMatchObject({ applies: true, ok: true });
+    for (const host of report.hosts) expect(HELPER_HOSTS, host).toContain(host);
   });
 });

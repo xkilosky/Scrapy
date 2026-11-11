@@ -4,10 +4,12 @@
  * 1. Every free helper is asked one small thing, to see whether it answers
  *    from where Scrapy runs, and how fast.
  * 2. The real tools are timed and compared with their targets.
- * 3. In the safe position, the list of contacted addresses is checked: it must
+ * 3. The fallback is tried for real: with the first ways switched off, a search
+ *    and a page must still succeed through the next ways.
+ * 4. In the safe position, the list of contacted addresses is checked: it must
  *    hold helpers only.
  */
-import { getMode, VERSION, type Mode } from './config';
+import { getMode, pageOrder, searchOrder, switchedOff, VERSION, type Mode } from './config';
 import { clip, describeFailure } from './errors';
 import { createHealth } from './health';
 import { loadPage } from './page/load';
@@ -35,6 +37,13 @@ export interface SpeedCheck {
   note: string;
 }
 
+export interface FallbackCheck {
+  what: string;
+  ok: boolean;
+  ms: number;
+  note: string;
+}
+
 export interface CheckReport {
   at: string;
   version: string;
@@ -43,6 +52,7 @@ export interface CheckReport {
   region: string | null;
   helpers: HelperCheck[];
   speed: SpeedCheck[];
+  fallback: FallbackCheck[];
   safe: { applies: boolean; ok: boolean; note: string };
   hosts: string[];
   contacts: Contact[];
@@ -156,6 +166,30 @@ export async function runChecks(options: { debug?: boolean } = {}): Promise<Chec
     }),
   );
 
+  // The fallback, for real: the ways Scrapy would use first are switched off for one search and one page.
+  const alreadyOff = switchedOff();
+  const firstEngines = searchOrder().filter((id) => !alreadyOff.has(id)).slice(0, 2);
+  const firstHelper = pageOrder().filter((id) => !alreadyOff.has(id))[0];
+  const fallback: FallbackCheck[] = [];
+  {
+    const check = await timed(`search_web with ${firstEngines.join(' and ')} switched off`, 0, async () => {
+      const out = await searchWeb({ query: 'javascript array map method explained' }, trace, { store, health, off: new Set([...alreadyOff, ...firstEngines]) });
+      const used = out.engines.filter((e) => e.ok).map((e) => e.id);
+      if (out.results.length === 0) throw new Error('no results came back');
+      return `${out.results.length} results from ${used.join(' + ')}`;
+    });
+    fallback.push({ what: check.what, ok: check.ok, ms: check.ms, note: check.note });
+  }
+  if (firstHelper) {
+    const check = await timed(`fetch_url with ${firstHelper} switched off`, 0, async () => {
+      const { doc } = await loadPage({ url: PLAIN_PAGE, fresh: true }, trace, { store, health, budgetMs: 30_000, off: new Set([...alreadyOff, firstHelper]) });
+      if (doc.way === firstHelper) throw new Error(`${firstHelper} was used although it was switched off`);
+      if (!/example domain/i.test(doc.content)) throw new Error(`loaded by ${doc.wayName}, but the text was not the page's`);
+      return `loaded by ${doc.wayName}`;
+    });
+    fallback.push({ what: check.what, ok: check.ok, ms: check.ms, note: check.note });
+  }
+
   const hosts = trace.hosts();
   const strangers = hosts.filter((h) => !HELPER_HOSTS.includes(h));
   const safe =
@@ -172,6 +206,7 @@ export async function runChecks(options: { debug?: boolean } = {}): Promise<Chec
     region: process.env.VERCEL_REGION ?? null,
     helpers,
     speed,
+    fallback,
     safe,
     hosts,
     contacts: trace.contacts,
