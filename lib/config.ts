@@ -1,0 +1,113 @@
+/**
+ * Every setting of Scrapy in one place.
+ * None of these is a key or a password. Scrapy needs no account anywhere.
+ */
+
+export const VERSION = '0.1.0';
+export const REPO_URL = 'https://github.com/xkilosky/Scrapy';
+
+/** How Scrapy names itself to every service and site it talks to. */
+export const USER_AGENT = `Scrapy/${VERSION} (+${REPO_URL})`;
+
+/**
+ * The one big setting: how web pages get loaded.
+ *
+ * - safe:   Scrapy never downloads the page itself. It only asks the free helper services.
+ * - middle: helpers first, Scrapy's own download when they are busy.
+ * - full:   Scrapy's own download first, helpers for pages that need a real browser.
+ *
+ * Set with the environment variable SCRAPY_MODE. Anything else means "safe".
+ */
+export type Mode = 'safe' | 'middle' | 'full';
+
+export function getMode(): Mode {
+  const raw = (process.env.SCRAPY_MODE ?? '').trim().toLowerCase();
+  if (raw === 'middle') return 'middle';
+  if (raw === 'full' || raw === 'full-speed' || raw === 'fullspeed') return 'full';
+  return 'safe';
+}
+
+function envInt(name: string, fallback: number, min: number, max: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === '') return fallback;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+function envList(name: string): string[] | null {
+  const raw = process.env[name];
+  if (!raw) return null;
+  const items = raw
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  return items.length > 0 ? items : null;
+}
+
+export const SEARCH = {
+  defaultCount: 8,
+  maxCount: 20,
+  /** No more than this many results from one site. */
+  perSite: 3,
+  /** How long one search engine may take. */
+  engineTimeoutMs: 9_000,
+  /** Once one engine has answered, how much longer the other one gets. */
+  graceMs: 2_500,
+  /** With fewer usable results than this, the remaining engines are asked too. */
+  enoughResults: 5,
+  cacheSec: 900,
+} as const;
+
+export const PAGE = {
+  /** Long pages are returned in parts of about this many characters. */
+  partChars: 20_000,
+  cacheSec: 900,
+  /** How long one way of loading a page may take. */
+  wayTimeoutMs: 25_000,
+  /** With no answer after this long, the next way is started alongside. 0 switches this off. */
+  hedgeAfterMs: 6_000,
+  /** The whole fetch gives up after this long. */
+  budgetMs: 45_000,
+  maxHelperBytes: 8_000_000,
+  maxOwnBytes: 5_000_000,
+  /** Pages longer than this are cut, with a note. */
+  maxChars: 1_500_000,
+} as const;
+
+export const REST = {
+  /** A helper that says "slow down" without saying for how long rests this long. */
+  busySec: 600,
+  /** A helper that failed twice in a row rests this long. */
+  failSec: 90,
+  failsBeforeRest: 2,
+} as const;
+
+export function limits(): { visitorPerMinute: number; dailyCalls: number } {
+  return {
+    visitorPerMinute: envInt('SCRAPY_VISITOR_PER_MINUTE', 30, 1, 100_000),
+    dailyCalls: envInt('SCRAPY_DAILY_CALLS', 1_500, 1, 10_000_000),
+  };
+}
+
+export const DEFAULT_SEARCH_ORDER = ['tavily', 'firecrawl', 'exa', 'parallel'] as const;
+export const DEFAULT_PAGE_ORDER = ['jina', 'firecrawl', 'tavily', 'parallel', 'exa'] as const;
+
+/** The order in which search engines are tried. Change with SCRAPY_SEARCH_ORDER=exa,tavily,... */
+export function searchOrder(): string[] {
+  return envList('SCRAPY_SEARCH_ORDER') ?? [...DEFAULT_SEARCH_ORDER];
+}
+
+/** The order in which page helpers are tried. Change with SCRAPY_PAGE_ORDER=firecrawl,jina,... */
+export function pageOrder(): string[] {
+  return envList('SCRAPY_PAGE_ORDER') ?? [...DEFAULT_PAGE_ORDER];
+}
+
+/** Helpers listed in SCRAPY_OFF=jina,exa are never used. Handy for testing the fallback. */
+export function switchedOff(): Set<string> {
+  return new Set(envList('SCRAPY_OFF') ?? []);
+}
+
+export function onVercel(): boolean {
+  return process.env.VERCEL === '1';
+}
