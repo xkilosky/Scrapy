@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import { ScrapyError, type Reason } from '../errors';
 import { getLimiter, type Limiter } from '../limits';
+import { getLogBook, logCall, type LogBook } from '../logs';
 import { Trace, type TraceReport } from '../trace';
 import { fetchUrl } from './fetchUrl';
 import { searchWebTool } from './searchWeb';
@@ -73,15 +74,22 @@ export interface RunOptions {
   /** Keep the start of each helper's raw answer in the trace. For the check page. */
   debug?: boolean;
   limiter?: Limiter;
+  /** Who is asking: an agent over MCP (the default), or the "Try a tool" box of the check page. */
+  from?: 'agent' | 'page';
+  /** Where the call is written down for the live feed. Tests pass their own book. */
+  logs?: LogBook;
 }
 
 export async function runTool(name: string, rawArgs: unknown, visitor: string, options: RunOptions = {}): Promise<ToolRun> {
   const trace = new Trace(options.debug === true);
   let run: ToolRun;
+  /** True once the call has passed the limits. Until then it has cost nothing, and nothing bounds how many there are. */
+  let admitted = false;
   try {
     const tool = TOOLS.find((t) => t.name === name);
     if (!tool) throw new ScrapyError('bad_input', `There is no tool called "${name}". The tools are: ${TOOLS.map((t) => t.name).join(', ')}.`);
     await (options.limiter ?? getLimiter()).check(visitor);
+    admitted = true;
     const parsed = tool.schema.safeParse(rawArgs ?? {});
     if (!parsed.success) {
       const issues = parsed.error.issues.map((i) => `${i.path.join('.') || 'input'}: ${i.message}`).join('; ');
@@ -97,7 +105,15 @@ export async function runTool(name: string, rawArgs: unknown, visitor: string, o
       run = { ok: false, text: 'Something went wrong inside Scrapy. Try again.', reason: 'failed', trace: trace.report() };
     }
   }
-  // One line per call. No question and no link is written to the log.
+  // The live feed of the check page. Every call that passed the limits is listed. A call that
+  // was turned away before that (the caller is over a limit, or asked for a tool that does not
+  // exist) is listed once a minute for each caller: a caller stuck in a loop must not fill the log.
+  const book = options.logs ?? getLogBook();
+  if (admitted || book.shouldListRefusal(visitor)) {
+    logCall({ tool: name, rawArgs, from: options.from ?? 'agent', at: trace.startedAt, ok: run.ok, text: run.text, trace: run.trace }, book);
+  }
+
+  // Vercel's own log: one line per call. No question and no link is written to it.
   if (process.env.VITEST) return run;
   console.log(
     JSON.stringify({

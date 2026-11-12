@@ -10,9 +10,12 @@ import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/cli
 import { createMcpHandler } from 'mcp-handler';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import { GET as logsRoute } from '@/app/api/logs/route';
 import { POST } from '@/app/api/mcp/route';
+import { POST as tryRoute } from '@/app/api/try/route';
 import { runChecks } from '@/lib/check';
 import { setFetch } from '@/lib/http';
+import { resetLogBook, type LogEntry } from '@/lib/logs';
 import { HELPER_HOSTS } from '@/lib/providers';
 import { runTool } from '@/lib/tools';
 
@@ -156,6 +159,93 @@ async function call(client: Client, name: string, args: Record<string, unknown>)
   const blocks = result.content as { type: string; text?: string }[];
   return { text: blocks.map((b) => b.text ?? '').join('\n'), isError: result.isError === true };
 }
+
+/**
+ * This comes first in the file on purpose. Later tests make helpers "busy", and a busy helper
+ * rests for minutes: after them, a search would be answered by the fallback engines.
+ */
+describe('the live feed', () => {
+  async function feed(query = ''): Promise<{ on: boolean; rev: string; entries: LogEntry[] | null; found?: boolean; response?: { content: { type: string; text: string }[] } }> {
+    return (await (await logsRoute(new Request(`https://scrapy.test/api/logs${query}`))).json()) as never;
+  }
+
+  it('lists every call: who made it, what was asked, how it was answered, how long it took, and the answer', async () => {
+    resetLogBook();
+    const started = Date.now();
+    const client = await connect();
+    const search = await call(client, 'search_web', { query: 'a question for the live feed', max_results: 5, exclude_sites: ['pinterest.com'] });
+    await call(client, 'search_web', { query: 'a question for the live feed', max_results: 5, exclude_sites: ['pinterest.com'] });
+    const quotes = await call(client, 'fetch_url', { url: 'https://feed.example/js/' });
+    const refused = await call(client, 'fetch_url', { url: 'http://192.168.1.1/admin' });
+    await client.close();
+    const tried = await tryRoute(
+      new Request('https://scrapy.test/api/try', { method: 'POST', headers: { 'content-type': 'application/json', 'x-real-ip': '203.0.113.50' }, body: JSON.stringify({ tool: 'fetch_url', args: { url: 'https://example.com/for-the-feed' } }) }),
+    );
+    expect(((await tried.json()) as { ok: boolean }).ok).toBe(true);
+
+    const { on, entries } = await feed();
+    expect(on).toBe(true);
+    const list = entries ?? [];
+    expect(list.map((e) => `${e.from} ${e.tool} ${e.ok ? 'ok' : 'failed'}: ${e.method}`)).toEqual([
+      'agent search_web ok: Tier 1 (Fast HTTP)',
+      'agent search_web ok: Memory',
+      'agent fetch_url ok: Tier 2 (Real browser)',
+      'agent fetch_url failed: Not started',
+      'page fetch_url ok: Tier 1 (Fast HTTP)',
+    ]);
+    const [first, again, browser, privateAddress, fromPage] = list as [LogEntry, LogEntry, LogEntry, LogEntry, LogEntry];
+
+    // The search: the question, the other arguments, who answered, and each step with its time.
+    expect(first).toMatchObject({ input: 'a question for the live feed', options: { max_results: '5', exclude_sites: 'pinterest.com' }, tier: 1, by: ['Tavily', 'Exa'], chars: search.text.length });
+    expect(first.steps.map((s) => `${s.way}: ${s.ok}`).sort()).toEqual(['exa search: true', 'tavily search: true']);
+    expect(first.at).toBeGreaterThanOrEqual(started);
+    expect(first.at).toBeLessThanOrEqual(Date.now());
+    expect(first.ms).toBeGreaterThanOrEqual(0);
+    expect(first.text).toBeUndefined();
+
+    // The same search again: from memory, nobody was asked, and it still says who gave the answer first.
+    expect(again).toMatchObject({ tier: 0, by: ['Tavily', 'Exa'], steps: [] });
+
+    // A page built by JavaScript: the second reading, in a real browser, gave the answer.
+    expect(browser).toMatchObject({ input: 'https://feed.example/js/', tier: 2, by: ['Jina Reader'] });
+    expect(browser.steps.map((s) => s.way)).toEqual(['jina', 'jina, in a real browser']);
+
+    // A refused call: the sentence the agent got is in the list, and nothing was tried.
+    expect(privateAddress).toMatchObject({ input: 'http://192.168.1.1/admin', tier: null, by: [], steps: [], text: refused.text });
+
+    expect(fromPage).toMatchObject({ input: 'https://example.com/for-the-feed', by: ['Jina Reader'] });
+
+    // The answer of a call, exactly as the agent got it.
+    const answer = await feed(`?id=${first.id}`);
+    expect(answer.response).toEqual({ content: [{ type: 'text', text: search.text }] });
+    expect((await feed(`?id=${browser.id}`)).response?.content[0]?.text).toBe(quotes.text);
+  });
+
+  it('answers "nothing changed" between two calls', async () => {
+    resetLogBook();
+    await runTool('search_web', { query: 'another question for the live feed' }, 'visitor-feed');
+    const first = await feed();
+    expect(first.entries).toHaveLength(1);
+    expect((await feed(`?rev=${encodeURIComponent(first.rev)}`)).entries).toBeNull();
+    await runTool('search_web', { query: 'yet another question for the live feed' }, 'visitor-feed');
+    expect((await feed(`?rev=${encodeURIComponent(first.rev)}`)).entries).toHaveLength(2);
+  });
+
+  it('lists a caller who is over the limit once, not for every refused call', async () => {
+    resetLogBook();
+    process.env.SCRAPY_VISITOR_PER_MINUTE = '2';
+    try {
+      const answers: string[] = [];
+      for (let i = 0; i < 6; i++) answers.push((await runTool('search_web', { query: 'another question for the live feed' }, 'visitor-in-a-loop')).text);
+      expect(answers.filter((t) => t.startsWith('Slow down'))).toHaveLength(4);
+      const list = (await feed()).entries ?? [];
+      expect(list.map((e) => (e.ok ? 'ok' : (e.text ?? '').slice(0, 9)))).toEqual(['ok', 'ok', 'Slow down']);
+      expect(list[2]).toMatchObject({ method: 'Not started', steps: [] });
+    } finally {
+      delete process.env.SCRAPY_VISITOR_PER_MINUTE;
+    }
+  });
+});
 
 describe("Scrapy's MCP address", () => {
   it('introduces itself and lists its tools', async () => {

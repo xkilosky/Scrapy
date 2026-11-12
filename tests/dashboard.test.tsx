@@ -93,6 +93,12 @@ describe('the menu list', () => {
     expect(MENU[0].items.map((item) => item.label)).toEqual(['Run checks', 'The address for your agent', 'Try a tool']);
   });
 
+  it('gives every entry an id of its own, because the id is its address', () => {
+    const ids = MENU.flatMap((section) => section.items.map((item) => item.id));
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(viewFromHash('#logs')).toBe('logs');
+  });
+
   it('reads the part from the page address, and falls back to the first part', () => {
     expect(viewFromHash('#try')).toBe('try');
     expect(viewFromHash('#address')).toBe('address');
@@ -207,7 +213,8 @@ describe('the dashboard', () => {
     render(<CheckPage />);
     const menu = await openMenu(user);
     const close = within(menu).getByRole('button', { name: 'Close menu' });
-    const last = within(menu).getByRole('link', { name: 'Try a tool' });
+    // The last thing in the drawer: the only entry of its last section.
+    const last = within(menu).getByRole('link', { name: 'Live feed' });
 
     await user.tab({ shift: true });
     expect(document.activeElement).toBe(last);

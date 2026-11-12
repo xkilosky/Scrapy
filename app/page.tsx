@@ -8,6 +8,7 @@
  *   every address Scrapy contacted.
  * - "The address for your agent" is what an agent connects to.
  * - "Try a tool" runs a tool exactly as an agent would and shows the answer.
+ * The second section, "Logs", has the live feed of tool calls (ui/LogsView.tsx).
  *
  * One part shows at a time. Its name is in the page address ("#try"), so the
  * back button works and a part can be linked to. What was typed or checked in
@@ -15,6 +16,7 @@
  */
 import { useEffect, useState } from 'react';
 import { Drawer } from './ui/Drawer';
+import { LogsView } from './ui/LogsView';
 import { FIRST_VIEW, MENU, menuItem, viewFromHash, type ViewId } from './ui/menu';
 
 interface Status {
@@ -294,9 +296,14 @@ export default function CheckPage() {
       <Drawer id="menu" open={menuOpen} onClose={() => setMenuOpen(false)} sections={MENU} current={view} foot={status ? `Scrapy version ${status.version}` : undefined} />
 
       {/* While the menu is open, the page behind it is out of reach. */}
-      <main inert={menuOpen}>
+      <main inert={menuOpen} className={view === 'logs' ? 'wide' : undefined}>
         <h1>{showing.label}</h1>
         <p className="lead">{showing.about}</p>
+
+        {/* Always there, so that the feed keeps its calls and its unfolded cards while another part shows. It only asks for news while it shows. */}
+        <div hidden={view !== 'logs'}>
+          <LogsView active={view === 'logs'} />
+        </div>
 
         {view === 'checks' && (
           <section className="card">

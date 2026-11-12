@@ -56,7 +56,8 @@ The code also has 149 automated tests. They replace the network with stand-ins, 
 
 **Added after this report, at your request (2026-11-11)**
 
-- **A menu drawer on the check page.** The menu button at the top left opens a drawer with sections. The first section is "Dashboard", with three parts: Run checks, The address for your agent, Try a tool. One part shows at a time. No other section exists yet.
+- **A menu drawer on the check page.** The menu button at the top left opens a drawer with sections. The first section is "Dashboard", with three parts: Run checks, The address for your agent, Try a tool. One part shows at a time.
+- **A second section, "Logs", with the live feed.** Every tool call is listed the moment it is answered: time, tool, question or link, method, duration, result. A line unfolds into a card, and the card's last row into the JSON response the agent got. This changes one thing this plan said before: Scrapy now writes down what was asked and what was answered, for up to 24 hours, the last 100 calls. It does so only where its page is private (your machine, the test address). On the public address the log is off. Seeing an agent's calls on the public address needs the access decision from stage 4.
 
 **Numbers I chose**
 

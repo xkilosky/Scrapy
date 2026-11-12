@@ -24,9 +24,18 @@ export interface Step {
   note: string;
 }
 
+/** How an answer was obtained: which ways gave it, and whether a real browser read the page. */
+export interface Route {
+  /** Names of the ways that answered, for example ["Tavily", "Exa"]. */
+  by: string[];
+  browser: boolean;
+}
+
 export interface TraceReport {
   totalMs: number;
   cache: 'hit' | 'miss' | 'off';
+  /** null when no answer was obtained. */
+  route: Route | null;
   steps: Step[];
   contacts: Contact[];
   hosts: string[];
@@ -39,6 +48,7 @@ export class Trace {
   readonly steps: Step[] = [];
   readonly samples: { who: string; text: string }[] = [];
   cache: 'hit' | 'miss' | 'off' = 'off';
+  route: Route | null = null;
 
   /** With debug on, helpers keep the start of their raw answers. Used by the checks only. */
   constructor(readonly debug = false) {}
@@ -49,6 +59,11 @@ export class Trace {
 
   step(way: string, ok: boolean, ms: number, note: string): void {
     this.steps.push({ way, ok, ms, note });
+  }
+
+  /** The tools call this once they have an answer: who gave it, and whether a real browser read the page. */
+  via(by: string[], browser: boolean): void {
+    this.route = { by, browser };
   }
 
   sample(who: string, text: string): void {
@@ -63,6 +78,7 @@ export class Trace {
     return {
       totalMs: this.elapsed(),
       cache: this.cache,
+      route: this.route,
       steps: this.steps,
       contacts: this.contacts,
       hosts: this.hosts(),

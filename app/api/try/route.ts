@@ -15,6 +15,6 @@ export async function POST(request: Request): Promise<Response> {
   } catch {
     return Response.json({ ok: false, text: 'The request was not readable.' }, { status: 400 });
   }
-  const run = await runTool(String(body.tool ?? ''), body.args ?? {}, visitorOf(request));
+  const run = await runTool(String(body.tool ?? ''), body.args ?? {}, visitorOf(request), { from: 'page' });
   return Response.json(run);
 }

@@ -82,7 +82,7 @@ Good to know: Vercel makes the very first deployment of a new project the public
 
 ## Settings
 
-All settings are optional environment variables, and none of them is a key. They are listed with explanations in [.env.example](.env.example): the position, the order of the helpers, helpers to switch off, and the two limits.
+All settings are optional environment variables, and none of them is a key. They are listed with explanations in [.env.example](.env.example): the position, the order of the helpers, helpers to switch off, the two limits, and the log of tool calls.
 
 ## Limits and rules
 
@@ -90,7 +90,8 @@ All settings are optional environment variables, and none of them is a key. They
 - Links to private or internal addresses are refused.
 - Pages behind a login or a paywall are reported as such. Scrapy does not try to get around them.
 - Scrapy says honestly who it is to every service and site: `Scrapy/<version> (+https://github.com/xkilosky/Scrapy)`.
-- Scrapy's log holds one line for each call: the tool, how long it took, which ways were tried. The question and the link are not written to the log.
+- Vercel's own log gets one line for each call: the tool, how long it took, which ways were tried. The question and the link are not written to it.
+- Where the live feed is on, Scrapy itself writes down more: what was asked and what was answered. See [The live feed](#the-live-feed) for where that is and for how long.
 
 ## The copycat-site list
 
@@ -106,11 +107,43 @@ The menu button at the top left opens a drawer with sections. The first section,
 2. **The address for your agent** shows the MCP address to copy, the tools that are ready, and the limits.
 3. **Try a tool** runs `search_web` or `fetch_url` exactly as an agent would and shows the answer the agent gets.
 
-One part shows at a time. Each has its own link (`#checks`, `#address`, `#try`), the back button goes to the part before, and what you typed or checked in one part is still there when you come back to it.
+The second section, **Logs**, has one part: the **Live feed** of tool calls. It is described below.
+
+One part shows at a time. Each has its own link (`#checks`, `#address`, `#try`, `#logs`), the back button goes to the part before, and what you typed or checked in one part is still there when you come back to it.
 
 The drawer closes with its close button, with the Escape key, with a click outside it, or when a part is chosen. At an address where Scrapy is closed there is no menu, only the notice.
 
 To add a section or an entry, add it to the list in [app/ui/menu.ts](app/ui/menu.ts) and give it its content in [app/page.tsx](app/page.tsx).
+
+## The live feed
+
+The feed lists every tool call, the newest at the bottom, the moment Scrapy has answered it. It looks like a terminal: one line for each call with the time, the tool, the question or link, the method, how long it took, and whether it worked.
+
+A line unfolds into a card:
+
+| Field | What it holds |
+| --- | --- |
+| Timestamp | When the call arrived, in your own time zone. |
+| Tool | `search_web` or `fetch_url`. |
+| Query or URL | What was asked, and the other arguments. |
+| Method | How the answer was obtained (see below), who gave it, and every way that was tried with its time. |
+| Duration | From the call arriving to the answer leaving. |
+| Result | OK with the length of the answer, or Failed with the sentence the agent got. |
+| Called by | An agent over MCP, or the "Try a tool" box. |
+| Payload | Unfolds once more into the JSON response, exactly as the agent received it. |
+
+**Method** is one of:
+
+- **Tier 1 (Fast HTTP)**: an ordinary request to a helper. In the middle and full-speed positions it can also be Scrapy's own download.
+- **Tier 2 (Real browser)**: a helper read the page in a real browser, for pages built with JavaScript.
+- **Memory**: answered from Scrapy's 15-minute memory. Nobody was contacted.
+- **None worked** or **Not started**: there is no answer. The card says what was tried, or why nothing was.
+
+**Where it is on.** The log holds what was asked and what was answered, and everybody who can open Scrapy's page can read it. So it is on where that page is private: on your own machine, and on Vercel's test addresses, which need your Vercel login. On Vercel's public address it is off, and nothing is written down there. `SCRAPY_LOGS=off` switches it off everywhere. `SCRAPY_LOGS=on` switches it on everywhere, the public address included: use that only for an address that strangers cannot open.
+
+**What is kept.** The last 100 calls, for up to 24 hours. There is no database: on Vercel the log lives in the shared memory (Vercel's Runtime Cache), elsewhere in the memory of the running server. Both may forget earlier. Two servers writing at the same moment can overwrite each other; each server puts its own calls back with its next write, but a call can go missing from the log in a rare case. A call that is turned away because the caller is over a limit is listed once a minute for each caller, not every time.
+
+**What it costs on Vercel's free plan.** While the feed is open and its tab is in front, the page asks Scrapy for news every 2 seconds, every 5 seconds after two quiet minutes, and every 15 seconds after ten. Each question is one small request and one read unit of the shared memory. A tool call costs about 3 to 4 write units. Vercel's free plan includes 1,000,000 read units and 200,000 write units a month for all projects of the account together. When they are used up, Vercel pauses the shared memory for the rest of that month's period: the tools keep working, but the feed on Vercel shows nothing, and says so.
 
 ## Working on Scrapy
 
@@ -132,7 +165,8 @@ The tests replace the network with stand-ins that answer the way the real helper
 | --- | --- |
 | `app/api/mcp/route.ts` | The MCP address. |
 | `app/page.tsx`, `app/api/check`, `app/api/try` | The check page. |
-| `app/ui/` | The menu drawer of the check page, and the list of its sections and entries. |
+| `app/ui/` | The menu drawer of the check page, the list of its sections and entries, and the live feed. |
+| `lib/logs.ts`, `app/api/logs/route.ts` | The log of tool calls behind the live feed. |
 | `lib/tools/` | The tools, and the text they answer with. |
 | `lib/search/` | Asking the engines, merging, the copycat-site list. |
 | `lib/page/` | Loading a page, cleaning it, checking it, parts, focus. |
@@ -145,4 +179,4 @@ The tests replace the network with stand-ins that answer the way the real helper
 
 Scrapy is a Next.js app and runs on Vercel's free plan as it is. Import the repository in Vercel. It starts closed at its public address; set `SCRAPY_OPEN=1` to open it.
 
-Setting `SCRAPY_BUILD_PROBE=1` makes each Vercel build ask every helper one small thing and write the result into the build log.
+Setting `SCRAPY_BUILD_PROBE=1` makes each Vercel build ask every helper one small thing and write the result into the build log. `SCRAPY_BUILD_PROBE=memory` only tries Vercel's shared memory, which carries the log of tool calls, and contacts no helper.

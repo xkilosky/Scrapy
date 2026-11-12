@@ -24,7 +24,7 @@ const handler = createMcpHandler(
         },
         async (args, ctx) => {
           const visitor = ctx.http?.req ? visitorOf(ctx.http.req) : 'unknown';
-          const run = await runTool(tool.name, args, visitor);
+          const run = await runTool(tool.name, args, visitor, { from: 'agent' });
           return { content: [{ type: 'text' as const, text: run.text }], ...(run.ok ? {} : { isError: true }) };
         },
       );

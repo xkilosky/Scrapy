@@ -42,6 +42,16 @@ export const MENU = [
       },
     ],
   },
+  {
+    title: 'Logs',
+    items: [
+      {
+        id: 'logs',
+        label: 'Live feed',
+        about: 'Every tool call, as it happens. The newest is at the bottom. Press a line to unfold it.',
+      },
+    ],
+  },
 ] as const satisfies readonly MenuSection[];
 
 export type ViewId = (typeof MENU)[number]['items'][number]['id'];

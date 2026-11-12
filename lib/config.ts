@@ -87,6 +87,45 @@ export const REST = {
   failsBeforeRest: 2,
 } as const;
 
+/** The log of tool calls behind the "Live feed". */
+export const LOGS = {
+  /** How many calls are kept. Older ones are forgotten. */
+  keep: 100,
+  /** A call is forgotten after this many hours, even when fewer than "keep" came after it. */
+  hours: 24,
+  /** An answer longer than this is cut in the log (never in what the agent gets). */
+  maxAnswerChars: 60_000,
+  /** At least this long between two writes of the list to the shared memory. A burst of calls is written in one go. */
+  writeGapMs: 1_000,
+  /** A caller who is over a limit is listed once in this long, not for every refused call. */
+  refusalGapMs: 60_000,
+} as const;
+
+/**
+ * Is the log on?
+ *
+ * The log holds what was asked and what was answered, and everybody who can
+ * open Scrapy's page can read it. So it is on where that page is private: on a
+ * developer's machine and on Vercel's test addresses, which need the owner's
+ * Vercel login. On Vercel's public address ("production") it is off.
+ *
+ * SCRAPY_LOGS=off switches it off everywhere. SCRAPY_LOGS=on switches it on
+ * everywhere, the public address included: only for an address that strangers
+ * cannot open.
+ */
+export function logsSetting(): 'on' | 'off' | 'auto' {
+  const raw = (process.env.SCRAPY_LOGS ?? '').trim().toLowerCase();
+  if (raw === 'off' || raw === '0' || raw === 'no' || raw === 'false') return 'off';
+  if (raw === 'on' || raw === '1' || raw === 'yes' || raw === 'true') return 'on';
+  return 'auto';
+}
+
+export function logsOn(): boolean {
+  const setting = logsSetting();
+  if (setting !== 'auto') return setting === 'on';
+  return process.env.VERCEL_ENV !== 'production';
+}
+
 export function limits(): { visitorPerMinute: number; dailyCalls: number } {
   return {
     visitorPerMinute: envInt('SCRAPY_VISITOR_PER_MINUTE', 30, 1, 100_000),

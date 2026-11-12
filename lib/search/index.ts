@@ -123,9 +123,13 @@ export async function searchWeb(input: SearchInput, trace: Trace, overrides: Par
   const recency = input.recency;
 
   const cacheKey = keyOf('search', { text: text.toLowerCase(), count, includeSites, excludeSites, recency: recency ?? null });
+  /** The names of the engines whose answers are in an outcome, for the trace. */
+  const answeredBy = (engines: SearchOutcome['engines']): string[] => engines.filter((e) => e.ok).map((e) => deps.engines.find((known) => known.id === e.id)?.name ?? e.id);
+
   const remembered = await deps.store.get<SearchOutcome>(cacheKey);
   if (remembered) {
     trace.cache = 'hit';
+    trace.via(answeredBy(remembered.engines), false);
     return { ...remembered, cached: true, tookMs: Date.now() - started };
   }
   trace.cache = 'miss';
@@ -172,6 +176,7 @@ export async function searchWeb(input: SearchInput, trace: Trace, overrides: Par
     cached: false,
     tookMs: Date.now() - started,
   };
+  trace.via(answeredBy(outcome.engines), false);
   // An empty answer is remembered only briefly: it may be a passing problem.
   await deps.store.set(cacheKey, outcome, outcome.results.length > 0 ? SEARCH.cacheSec : 60);
   return outcome;

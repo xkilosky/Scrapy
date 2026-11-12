@@ -332,6 +332,7 @@ export async function loadPage(input: LoadInput, trace: Trace, overrides: Partia
     const remembered = await deps.store.get<PageDoc>(cacheKey);
     if (remembered) {
       trace.cache = 'hit';
+      trace.via([remembered.wayName], false);
       return { doc: remembered, cached: true };
     }
     const missing = await deps.store.get<{ reason: 'not_found'; message: string }>(missingKey);
@@ -399,6 +400,10 @@ export async function loadPage(input: LoadInput, trace: Trace, overrides: Partia
       }
     }
   }
+
+  // A real browser read the page only when one was asked for and the way that answered has one.
+  const answered = ways.find((w) => w.id === doc.way);
+  trace.via([doc.wayName], usedBrowser && answered?.browser === true);
 
   await deps.store.set(cacheKey, doc, PAGE.cacheSec);
   // Remember what worked for this site, when it was not simply the first way on the list.

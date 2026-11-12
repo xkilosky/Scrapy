@@ -5,6 +5,7 @@
  * Cache", which is shared between servers. Both forget on their own. If the
  * shared layer is unavailable, Scrapy carries on with its own memory.
  */
+import { createHash } from 'node:crypto';
 import { onVercel } from './config';
 
 export interface Store {
@@ -60,6 +61,16 @@ interface SharedCache {
   delete(key: string): Promise<void>;
 }
 
+/**
+ * The name under which a key is kept in the shared layer. Vercel's own default
+ * squeezes a key into 32 bits, and with that two different keys can end up
+ * with the same name: one page would then be answered with another page's
+ * content. 160 bits of SHA-256 rule that out.
+ */
+export function sharedKeyName(key: string): string {
+  return createHash('sha256').update(key).digest('hex').slice(0, 40);
+}
+
 let sharedPromise: Promise<SharedCache | null> | null = null;
 let sharedBrokenUntil = 0;
 
@@ -67,9 +78,32 @@ async function shared(): Promise<SharedCache | null> {
   if (!onVercel() || process.env.SCRAPY_SHARED_CACHE === 'off') return null;
   if (Date.now() < sharedBrokenUntil) return null;
   sharedPromise ??= import('@vercel/functions')
-    .then((mod) => mod.getCache({ namespace: 'scrapy' }) as SharedCache)
+    .then((mod) => mod.getCache({ namespace: 'scrapy', keyHashFunction: sharedKeyName }) as SharedCache)
     .catch(() => null);
   return sharedPromise;
+}
+
+/**
+ * The shared layer on its own, without this server's memory in front of it.
+ * For things that other servers change, like the log of tool calls: the
+ * layered store below would keep answering with this server's older copy.
+ */
+export interface SharedLayer {
+  /** null when nothing is kept under the key. */
+  get(key: string): Promise<unknown>;
+  set(key: string, value: unknown, ttlSec: number): Promise<void>;
+  delete(key: string): Promise<void>;
+}
+
+/** null where there is no shared layer: on a developer's machine, or with SCRAPY_SHARED_CACHE=off. */
+export async function sharedLayer(): Promise<SharedLayer | null> {
+  const cache = await shared();
+  if (!cache) return null;
+  return {
+    get: async (key) => (await cache.get(key)) ?? null,
+    set: (key, value, ttlSec) => cache.set(key, value, { ttl: ttlSec }),
+    delete: (key) => cache.delete(key),
+  };
 }
 
 function sharedFailed(): void {
