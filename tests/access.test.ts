@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { GET as docs } from '@/app/api/docs/route';
 import { GET as status } from '@/app/api/status/route';
 import { POST as check } from '@/app/api/check/route';
 import { POST as mcp } from '@/app/api/mcp/route';
 import { POST as tryTool } from '@/app/api/try/route';
+import { GET as llms } from '@/app/llms.txt/route';
+import { rulebook } from '@/lib/docs';
 import { isOpen } from '@/lib/access';
 import { setFetch } from '@/lib/http';
 
@@ -55,7 +58,32 @@ describe('open or closed', () => {
     const info = (await (await status()).json()) as Record<string, unknown>;
     expect(info).toEqual({ name: 'scrapy', version: '0.1.0', open: false, message: 'Scrapy is closed at this address. Its owner has not opened it yet.' });
 
+    // The docs are part of Scrapy: closed too.
+    const rules = await llms(new Request('https://scrapy.test/llms.txt'));
+    expect(rules.status).toBe(403);
+    expect(await rules.text()).toBe('Scrapy is closed at this address. Its owner has not opened it yet.\n');
+    const pages = await docs();
+    expect(pages.status).toBe(403);
+    expect(await pages.json()).toMatchObject({ ok: false, open: false, text: 'Scrapy is closed at this address. Its owner has not opened it yet.' });
+
     expect(contacted).toEqual([]);
+  });
+
+  it('where it is open, gives the rulebook as plain text, with the address of this Scrapy in it', async () => {
+    const rules = await llms(new Request('http://10.1.2.3:3000/llms.txt', { headers: { 'x-forwarded-host': 'my-scrapy.example', 'x-forwarded-proto': 'https' } }));
+    expect(rules.status).toBe(200);
+    expect(rules.headers.get('content-type')).toBe('text/plain; charset=utf-8');
+    const text = await rules.text();
+    expect(text).toBe(rulebook({ address: 'https://my-scrapy.example/api/mcp' }));
+    expect(text).toContain('MCP address: https://my-scrapy.example/api/mcp (Streamable HTTP, no key needed).');
+
+    const pages = await docs();
+    expect(pages.status).toBe(200);
+    expect(pages.headers.get('cache-control')).toBe('no-store');
+    const payload = (await pages.json()) as { tools: { name: string }[]; rulebook: string; facts: { limits: { perMinute: number } } };
+    expect(payload.tools.map((t) => t.name)).toEqual(['search_web', 'fetch_url']);
+    expect(payload.rulebook).toBe(rulebook());
+    expect(payload.facts.limits.perMinute).toBe(30);
   });
 
   it('when opened, answers', async () => {

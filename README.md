@@ -20,6 +20,14 @@ People do not use Scrapy directly. An AI agent does, for example to find out how
 
 When a tool cannot do its job, it answers with one plain sentence that says why: "Not found", "Needs a login", "Blocked by the site", "Took too long", or "The free services are busy. Try again in about 10 minutes."
 
+A tool accepts exactly the parameters it lists. An agent that makes one up gets it back at once, with the real ones next to it:
+
+```text
+The input for search_web is not right. It has no parameter "q" or "limit". Parameters of search_web: query (string, required, 1 to 500 characters); max_results (integer, 1 to 20, default 8); ...
+```
+
+Only the form of a value is forgiven, where it can mean one thing only: a number or true/false written as text, one item where a list is expected, and null or an empty text for a parameter that is not used. The exact parameters, with examples, are on the page [Docs, For the AI](#the-docs).
+
 ## Connecting an agent
 
 Scrapy has one address: `https://<where Scrapy runs>/api/mcp`. It speaks MCP over Streamable HTTP.
@@ -44,6 +52,10 @@ For an agent that only supports local MCP servers:
 }
 ```
 
+Scrapy's own page has this ready to copy, with its real address filled in, for Cursor, Claude Code, VS Code, local-only apps and your own code: menu, Docs, For humans.
+
+A Vercel test address is behind Vercel's login, and an agent cannot log in. To let one in, create a secret in the Vercel project (Settings, Deployment Protection, "Protection Bypass for Automation") and have the agent send it with every request in the header `x-vercel-protection-bypass`. At a test address the Docs page adds that header to every example.
+
 ## How it works
 
 **No keys.** Scrapy uses free services that officially offer a door with no key: Tavily, Firecrawl, Exa, Parallel and Jina Reader. This README calls them helpers. Their free allowances are small and not published, so Scrapy keeps several for each job.
@@ -54,7 +66,7 @@ For an agent that only supports local MCP servers:
 
 **Resting.** A helper that says "slow down" is left alone for as long as it asked, and the others carry on.
 
-**Memory.** Every page and every search is remembered for 15 minutes, so asking twice costs nothing. There is no database.
+**Memory.** Every page and every search is remembered for 15 minutes, so asking twice asks no helper twice. There is no database.
 
 **Rules, not AI.** What counts as "clean", as a duplicate or as a copycat site is decided by fixed rules. They cost nothing, they are fast, and the same input always gives the same output.
 
@@ -107,9 +119,9 @@ The menu button at the top left opens a drawer with sections. The first section,
 2. **The address for your agent** shows the MCP address to copy, the tools that are ready, and the limits.
 3. **Try a tool** runs `search_web` or `fetch_url` exactly as an agent would and shows the answer the agent gets.
 
-The second section, **Logs**, has one part: the **Live feed** of tool calls. It is described below.
+The second section, **Logs**, has one part: the **Live feed** of tool calls. The third section, **Docs**, has two: **For humans** and **For the AI**. Both sections are described below.
 
-One part shows at a time. Each has its own link (`#checks`, `#address`, `#try`, `#logs`), the back button goes to the part before, and what you typed or checked in one part is still there when you come back to it.
+One part shows at a time. Each has its own link (`#checks`, `#address`, `#try`, `#logs`, `#docs-humans`, `#docs-ai`), the back button goes to the part before, and what you typed or checked in one part is still there when you come back to it.
 
 The drawer closes with its close button, with the Escape key, with a click outside it, or when a part is chosen. At an address where Scrapy is closed there is no menu, only the notice.
 
@@ -145,6 +157,26 @@ A line unfolds into a card:
 
 **What it costs on Vercel's free plan.** While the feed is open and its tab is in front, the page asks Scrapy for news every 2 seconds, every 5 seconds after two quiet minutes, and every 15 seconds after ten. Each question is one small request and one read unit of the shared memory. A tool call costs about 3 to 4 write units. Vercel's free plan includes 1,000,000 read units and 200,000 write units a month for all projects of the account together. When they are used up, Vercel pauses the shared memory for the rest of that month's period: the tools keep working, but the feed on Vercel shows nothing, and says so.
 
+## The docs
+
+Two pages, for two readers.
+
+**For humans** is for the person who connects an AI to Scrapy. It has four parts: how to connect (the address, and where it goes in each kind of AI app), the limits, how Scrapy gets an answer (the fast, free, smart fallback, step by step, for a search and for a page), and how to read the live feed.
+
+**For the AI** is the rulebook an agent follows: which tool to use, the exact parameters of each tool with their types, limits and defaults, examples of what to send, what the answer looks like, and what to do after each kind of failure.
+
+An agent never opens that page. It gets the same rules from Scrapy itself, in three ways:
+
+1. **Over MCP, the moment it connects.** Every agent is handed each tool with its description and its exact parameters. The parameter list allows nothing else (`additionalProperties: false`). Most AI apps also pass on Scrapy's short instructions.
+2. **As an MCP resource.** The whole rulebook is the resource `scrapy://rulebook`, for apps that read resources.
+3. **As plain text at `/llms.txt`.** An agent that can open a link can read it there, and a person can paste it into the agent's own instructions. The page "For the AI" has a button that copies it.
+
+The page shows a person exactly what the agent is told, so it can be checked.
+
+**One source.** Nothing in the docs is typed in twice. The parameters come from the tools' own definitions in [lib/tools/index.ts](lib/tools/index.ts), the numbers from [lib/config.ts](lib/config.ts) and the settings of the running Scrapy, the list of failures from [lib/errors.ts](lib/errors.ts). [lib/docs.ts](lib/docs.ts) makes the rulebook and everything the two pages show from them. Tests hold the docs and the tools together: every example must be accepted, the sample answers must be what the tools really write, and every failure sentence in the code must start the way the list of failures says.
+
+To change what an agent is told about a tool, change the tool's entry in `lib/tools/index.ts`. The MCP list, the rulebook, `/llms.txt` and both pages follow.
+
 ## Working on Scrapy
 
 Needs Node.js 22.
@@ -165,9 +197,11 @@ The tests replace the network with stand-ins that answer the way the real helper
 | --- | --- |
 | `app/api/mcp/route.ts` | The MCP address. |
 | `app/page.tsx`, `app/api/check`, `app/api/try` | The check page. |
-| `app/ui/` | The menu drawer of the check page, the list of its sections and entries, and the live feed. |
+| `app/ui/` | The menu drawer of the check page, the list of its sections and entries, the live feed, and the two Docs pages. |
 | `lib/logs.ts`, `app/api/logs/route.ts` | The log of tool calls behind the live feed. |
-| `lib/tools/` | The tools, and the text they answer with. |
+| `lib/docs.ts`, `app/api/docs`, `app/llms.txt` | The docs: the rulebook for agents, and everything the Docs pages show. |
+| `lib/tools/` | The tools: their parameters, examples and descriptions, the check of what an agent sent, and the text they answer with. |
+| `lib/errors.ts` | The reasons a tool can fail for, each with what an agent should do next. |
 | `lib/search/` | Asking the engines, merging, the copycat-site list. |
 | `lib/page/` | Loading a page, cleaning it, checking it, parts, focus. |
 | `lib/providers/` | One file for each helper. Add or drop a helper here. |

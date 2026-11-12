@@ -213,8 +213,10 @@ describe('the dashboard', () => {
     render(<CheckPage />);
     const menu = await openMenu(user);
     const close = within(menu).getByRole('button', { name: 'Close menu' });
-    // The last thing in the drawer: the only entry of its last section.
-    const last = within(menu).getByRole('link', { name: 'Live feed' });
+    // The last thing in the drawer: the last entry of its last section.
+    const lastItem = MENU.at(-1)?.items.at(-1);
+    expect(lastItem?.label).toBe('For the AI');
+    const last = within(menu).getByRole('link', { name: 'For the AI' });
 
     await user.tab({ shift: true });
     expect(document.activeElement).toBe(last);

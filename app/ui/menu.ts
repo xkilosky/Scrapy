@@ -12,6 +12,8 @@ export interface MenuItem {
   id: string;
   /** Shown in the menu, and as the title of the part it opens. */
   label: string;
+  /** The title of the part, when the label alone would not say enough there. */
+  title?: string;
   /** One sentence shown under the title. */
   about: string;
 }
@@ -52,6 +54,23 @@ export const MENU = [
       },
     ],
   },
+  {
+    title: 'Docs',
+    items: [
+      {
+        id: 'docs-humans',
+        label: 'For humans',
+        title: 'Docs for humans',
+        about: 'How to connect your AI, the limits, how Scrapy gets an answer, and how to read the logs.',
+      },
+      {
+        id: 'docs-ai',
+        label: 'For the AI',
+        title: 'Docs for the AI',
+        about: 'The rulebook your AI follows: which tool to use, the exact parameters to send, and what to do when a tool cannot do the job.',
+      },
+    ],
+  },
 ] as const satisfies readonly MenuSection[];
 
 export type ViewId = (typeof MENU)[number]['items'][number]['id'];
@@ -65,9 +84,12 @@ export function menuItem(id: ViewId): MenuItem {
   return ITEMS.find((item) => item.id === id) ?? MENU[0].items[0];
 }
 
+/** Other names for a part, so that an obvious address works too: "#docs" opens the first page of the docs. */
+const ALSO: Record<string, ViewId> = { docs: 'docs-humans' };
+
 /** Which part an address like "#try" names. Anything unknown means the first part. */
 export function viewFromHash(hash: string): ViewId {
   const id = hash.replace(/^#/, '');
   const found = ITEMS.find((item) => item.id === id);
-  return found ? (found.id as ViewId) : FIRST_VIEW;
+  return found ? (found.id as ViewId) : (ALSO[id] ?? FIRST_VIEW);
 }

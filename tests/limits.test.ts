@@ -68,7 +68,7 @@ describe('runTool', () => {
     const limiter = createLimiter(createMemoryStore());
     const bad = await runTool('search_web', { query: 'x', max_results: 500 }, 'v', { limiter });
     expect(bad).toMatchObject({ ok: false, reason: 'bad_input' });
-    expect(bad.text).toMatch(/^The input for search_web is not right\. max_results:/);
+    expect(bad.text).toMatch(/^The input for search_web is not right\. "max_results" is 500\. It must be: integer, 1 to 20\. Parameters of search_web: query \(/);
     const unknown = await runTool('nope', {}, 'v', { limiter });
     expect(unknown.text).toBe('There is no tool called "nope". The tools are: search_web, fetch_url.');
   });

@@ -17,7 +17,9 @@ import { runChecks } from '@/lib/check';
 import { setFetch } from '@/lib/http';
 import { resetLogBook, type LogEntry } from '@/lib/logs';
 import { HELPER_HOSTS } from '@/lib/providers';
-import { runTool } from '@/lib/tools';
+import { rulebook } from '@/lib/docs';
+import { runTool, SERVER_INSTRUCTIONS, TOOLS } from '@/lib/tools';
+import { jsonSchemaOf } from '@/lib/tools/describe';
 
 /** What each stand-in answers. Tests change this to simulate trouble. */
 const world = {
@@ -245,6 +247,19 @@ describe('the live feed', () => {
       delete process.env.SCRAPY_VISITOR_PER_MINUTE;
     }
   });
+
+  it('lists a call with wrong arguments too, with the sentence the agent got', async () => {
+    resetLogBook();
+    const client = await connect();
+    const guessed = await call(client, 'search_web', { q: 'a guessed parameter', num_results: 3 });
+    await client.close();
+    expect(guessed.isError).toBe(true);
+
+    const list = (await feed()).entries ?? [];
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({ from: 'agent', tool: 'search_web', ok: false, method: 'Not started', steps: [], text: guessed.text });
+    expect(contacted).toEqual([]);
+  });
 });
 
 describe("Scrapy's MCP address", () => {
@@ -258,6 +273,69 @@ describe("Scrapy's MCP address", () => {
     expect(search?.inputSchema.required).toEqual(['query']);
     expect(Object.keys(search?.inputSchema.properties ?? {})).toEqual(['query', 'max_results', 'include_sites', 'exclude_sites', 'recency']);
     expect(search?.annotations?.readOnlyHint).toBe(true);
+    await client.close();
+  });
+
+  it('tells an agent how to use it, the moment it connects', async () => {
+    const client = await connect();
+    expect(client.getInstructions()).toBe(SERVER_INSTRUCTIONS);
+    expect(client.getServerCapabilities()).toMatchObject({ tools: {}, resources: {} });
+    await client.close();
+  });
+
+  it('hands over each tool with its exact parameters, and allows no others', async () => {
+    const client = await connect();
+    const { tools } = await client.listTools();
+    for (const tool of TOOLS) {
+      const listed = tools.find((t) => t.name === tool.name);
+      expect(listed?.title).toBe(tool.title);
+      expect(listed?.description).toBe(tool.description);
+      // Letter for letter the schema the docs are made from.
+      expect(listed?.inputSchema).toEqual(jsonSchemaOf(tool.schema));
+      expect(listed?.inputSchema.additionalProperties).toBe(false);
+    }
+    const page = tools.find((t) => t.name === 'fetch_url')?.inputSchema.properties as Record<string, Record<string, unknown>>;
+    expect(page.url?.description).toMatch(/Never make one up/);
+    expect(page.format).toMatchObject({ type: 'string', enum: ['markdown', 'html'], default: 'markdown' });
+    expect(page.part).toMatchObject({ type: 'integer', minimum: 1, default: 1 });
+    expect(page.browser).toMatchObject({ type: 'boolean', default: false });
+    await client.close();
+  });
+
+  it('answers a wrong call itself: what is wrong, and every parameter the tool really has', async () => {
+    const client = await connect();
+    const guessed = await call(client, 'search_web', { q: 'center a div', num_results: 3 });
+    expect(guessed.isError).toBe(true);
+    expect(guessed.text).toBe(
+      'The input for search_web is not right. It has no parameter "q" or "num_results". Parameters of search_web: query (string, required, 1 to 500 characters); max_results (integer, 1 to 20, default 8); ' +
+        'include_sites (array of strings, at most 10 items); exclude_sites (array of strings, at most 10 items); recency (one of "day", "week", "month", "year").',
+    );
+    expect((await call(client, 'fetch_url', {})).text).toMatch(/^The input for fetch_url is not right\. "url" is missing\. It is required\. Parameters of fetch_url: url \(string, required/);
+    expect((await call(client, 'search_web', { query: 'x', max_results: 500 })).text).toMatch(/^The input for search_web is not right\. "max_results" is 500\. It must be: integer, 1 to 20\./);
+    expect((await call(client, 'search_web', { query: 'x', recency: 'decade' })).text).toMatch(/"recency" is "decade"\. It must be: one of "day", "week", "month", "year"\./);
+    expect(contacted).toEqual([]);
+    await client.close();
+  });
+
+  it('carries out a call whose values are right but written in the wrong form', async () => {
+    const client = await connect();
+    // Everything as text, and null for what is not used. The call gets as far as the check of the link.
+    const asText = await call(client, 'fetch_url', { url: 'http://192.168.1.1/', part: '1', browser: 'true', format: null, focus: '' });
+    expect(asText.text).toBe('Refused: "192.168.1.1" is a private or internal address. Scrapy only reads public web pages.');
+    await client.close();
+  });
+
+  it('offers the rulebook as a document an agent can read, with its own address in it', async () => {
+    const client = await connect();
+    const { resources } = await client.listResources();
+    expect(resources).toHaveLength(1);
+    expect(resources[0]).toMatchObject({ name: 'rulebook', uri: 'scrapy://rulebook', mimeType: 'text/markdown' });
+    expect(resources[0]?.description).toMatch(/exact parameters/);
+
+    const { contents } = await client.readResource({ uri: 'scrapy://rulebook' });
+    expect(contents).toHaveLength(1);
+    expect(contents[0]).toMatchObject({ uri: 'scrapy://rulebook', mimeType: 'text/markdown' });
+    expect((contents[0] as { text: string }).text).toBe(rulebook({ address: 'https://scrapy.test/api/mcp' }));
     await client.close();
   });
 

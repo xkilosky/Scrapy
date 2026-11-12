@@ -410,6 +410,6 @@ export async function loadPage(input: LoadInput, trace: Trace, overrides: Partia
   const first = ways[0];
   const changed = remembered?.way !== doc.way || (remembered?.browser ?? false) !== usedBrowser;
   const worthIt = remembered !== null || usedBrowser !== browser || (first !== undefined && doc.way !== first.id);
-  if (changed && worthIt) await deps.store.set(memoryKey, { way: doc.way, browser: usedBrowser } satisfies SiteMemory, 24 * 3_600);
+  if (changed && worthIt) await deps.store.set(memoryKey, { way: doc.way, browser: usedBrowser } satisfies SiteMemory, PAGE.siteMemorySec);
   return { doc, cached: false };
 }

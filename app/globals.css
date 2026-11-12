@@ -919,3 +919,555 @@ main.wide {
     transition: none;
   }
 }
+
+/* --- The docs ---------------------------------------------------------------- */
+
+.small {
+  font-size: 13.5px;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+/* A link that looks like a button, next to a real button. */
+a.button {
+  display: inline-block;
+  font-weight: 600;
+  padding: 9px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+a.button:hover {
+  border-color: #b9c0cc;
+}
+
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* The bar of the page is sticky. A section that is scrolled to must not end up under it. */
+.doc {
+  scroll-margin-top: 76px;
+}
+
+.doc:focus {
+  outline: none;
+}
+
+.doc h2 {
+  margin-bottom: 10px;
+}
+
+.doc h3 {
+  margin-top: 26px;
+}
+
+.doc li {
+  margin-bottom: 8px;
+}
+
+.doc-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin: -6px 0 18px;
+  font-size: 14px;
+}
+
+.doc-nav > span {
+  color: var(--soft);
+  margin-right: 4px;
+}
+
+.doc-nav button {
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.doc-foot {
+  margin: 4px 2px 0;
+}
+
+.facts {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0 0;
+  font-size: 14.5px;
+}
+
+.facts > div {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.facts dt {
+  color: var(--soft);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.notice {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #f3f5f9;
+  font-size: 14.5px;
+}
+
+.notice.warn {
+  border-color: #f0dfa8;
+  background: var(--warn-bg);
+}
+
+.notice code,
+.doc p code,
+.doc li code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(20, 23, 31, 0.07);
+  overflow-wrap: anywhere;
+}
+
+button.tab.plain {
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.doc-panel {
+  margin-top: 14px;
+}
+
+.codeblock {
+  margin-bottom: 12px;
+  border-radius: 10px;
+  background: #0f1420;
+  overflow: hidden;
+}
+
+/* The bar on top of a block: what the block is, and the copy button. */
+.codeblock-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 8px 6px 16px;
+  border-bottom: 1px solid #262e42;
+  color: #b4bdcc;
+  font-size: 13px;
+}
+
+.codeblock pre {
+  border-radius: 0;
+}
+
+/* Code keeps its lines. A line that is too long is scrolled to, not broken. */
+.codeblock pre.keep {
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+button.codeblock-copy {
+  flex: none;
+  padding: 3px 10px;
+  border-color: #3a4359;
+  background: #1c2333;
+  color: #e6e9f0;
+  font-size: 12.5px;
+}
+
+button.codeblock-copy:hover:not(:disabled) {
+  border-color: #6b7896;
+}
+
+pre:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.plain-steps {
+  margin: 0;
+  padding-left: 22px;
+}
+
+.plain-steps li {
+  margin-bottom: 14px;
+}
+
+.plain-steps .codeblock {
+  margin-top: 8px;
+}
+
+/* Free, Fast, Smart: three boxes side by side. */
+.three {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0 4px;
+}
+
+.three > div {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fafbfc;
+}
+
+.three h3 {
+  margin: 0 0 6px;
+  color: var(--accent);
+}
+
+.three p {
+  margin: 0;
+  font-size: 14.5px;
+}
+
+/* The steps of a search or a page, as a ladder: a number on a line, the text beside it. */
+.ladder {
+  list-style: none;
+  counter-reset: step;
+  margin: 12px 0 10px;
+  padding: 0;
+}
+
+.ladder > li {
+  position: relative;
+  counter-increment: step;
+  margin: 0;
+  padding: 0 0 16px 42px;
+}
+
+.ladder > li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 26px;
+  text-align: center;
+}
+
+.ladder > li::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: 30px;
+  bottom: 2px;
+  width: 2px;
+  background: var(--line);
+}
+
+.ladder > li:last-child {
+  padding-bottom: 0;
+}
+
+.ladder > li:last-child::after {
+  display: none;
+}
+
+.step-title {
+  font-weight: 600;
+  line-height: 26px;
+}
+
+.step-text {
+  color: var(--soft);
+  font-size: 14.5px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 1px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chip small {
+  color: var(--soft);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+/* One line of the live feed, taken apart: each piece with its name under it. */
+.anatomy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+  margin: 4px 0 16px;
+  padding: 16px 18px 14px;
+  border-radius: 10px;
+  background: #0f1420;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.anatomy-part {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.anatomy-value {
+  color: #9aa5b8;
+  overflow-wrap: anywhere;
+}
+
+.anatomy-value.tool {
+  color: #7fb4ff;
+}
+
+.anatomy-value.ink {
+  color: #e6e9f0;
+}
+
+.anatomy-value.good {
+  color: #5fd39a;
+  font-weight: 700;
+}
+
+.anatomy-label {
+  padding-top: 5px;
+  border-top: 1px solid #36405a;
+  color: #b4bdcc;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.look-for,
+.notes,
+.ways {
+  margin: 0 0 12px;
+  padding-left: 22px;
+}
+
+.notes {
+  margin-top: 10px;
+  color: var(--soft);
+  font-size: 14.5px;
+}
+
+.ways li {
+  margin-bottom: 12px;
+}
+
+/* Words that Scrapy really says, quoted. */
+.said {
+  margin: 0 0 12px;
+  padding: 12px 16px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  background: #f3f5f9;
+  font-size: 14.5px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tool-name {
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.tool-title {
+  margin-left: 6px;
+  font-weight: 400;
+}
+
+/* On a narrow screen the parameter table is scrolled sideways. */
+.scroll table.params {
+  min-width: 680px;
+}
+
+.params td,
+.params th {
+  padding-right: 18px;
+}
+
+.params .mono {
+  font-size: 13px;
+}
+
+/* A second line in a cell: the limits under the type, the default under "optional". */
+.under {
+  display: block;
+  color: var(--soft);
+  font-size: 13.5px;
+}
+
+.limits td:first-child {
+  width: 30%;
+}
+
+.limits td.num {
+  width: 24%;
+  white-space: normal;
+}
+
+.starts {
+  font-size: 13px;
+}
+
+.starts + .starts {
+  margin-top: 4px;
+}
+
+details > summary {
+  cursor: pointer;
+  width: fit-content;
+  padding: 4px 2px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+details > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+details[open] > summary {
+  margin-bottom: 10px;
+}
+
+pre.rulebook {
+  max-height: 640px;
+}
+
+@media (max-width: 700px) {
+  .three {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .facts > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .anatomy {
+    gap: 12px 16px;
+  }
+
+  /* A narrow screen: the rows of these tables become blocks, one cell under the other,
+     so that nothing has to be scrolled to sideways. */
+  .scroll table.stack,
+  .scroll table.params {
+    min-width: 0;
+  }
+
+  /* The headings are taken out of sight, not away: a screen reader still has them. */
+  table.stack thead,
+  table.params thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  table.stack,
+  table.stack tbody,
+  table.params,
+  table.params tbody {
+    display: block;
+  }
+
+  table.stack tr,
+  table.params tr {
+    display: block;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  table.stack tr:first-child,
+  table.params tr:first-child {
+    border-top: 1px solid var(--line);
+  }
+
+  table.stack td,
+  table.params td {
+    display: block;
+    width: auto;
+    padding: 1px 0;
+    border: 0;
+  }
+
+  table.limits td:first-child,
+  table.limits td.num {
+    width: auto;
+  }
+
+  table.stack td:first-child {
+    font-weight: 600;
+  }
+
+  table.labelled td:first-child {
+    font-weight: 400;
+  }
+
+  table.labelled td[data-label]::before {
+    content: attr(data-label) ': ';
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  table.labelled td + td {
+    margin-top: 4px;
+  }
+
+  /* A parameter: its name, then type and "required" on one line, then what it is for. */
+  table.params td:first-child {
+    font-size: 14.5px;
+    font-weight: 700;
+  }
+
+  table.params td:nth-child(2),
+  table.params td:nth-child(3) {
+    display: inline-block;
+    margin-right: 14px;
+  }
+
+  table.params .under {
+    display: inline;
+  }
+
+  table.params .under::before {
+    content: ', ';
+  }
+}

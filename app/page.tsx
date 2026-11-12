@@ -9,15 +9,21 @@
  * - "The address for your agent" is what an agent connects to.
  * - "Try a tool" runs a tool exactly as an agent would and shows the answer.
  * The second section, "Logs", has the live feed of tool calls (ui/LogsView.tsx).
+ * The third, "Docs", has a page for people (ui/DocsHumans.tsx) and the
+ * rulebook for agents (ui/DocsAi.tsx).
  *
  * One part shows at a time. Its name is in the page address ("#try"), so the
  * back button works and a part can be linked to. What was typed or checked in
  * one part is still there after a visit to another.
  */
 import { useEffect, useState } from 'react';
+import type { DocsPayload } from '@/lib/docs';
+import { CopyButton } from './ui/CopyButton';
+import { DocsAi } from './ui/DocsAi';
+import { DocsHumans, type ClientId } from './ui/DocsHumans';
 import { Drawer } from './ui/Drawer';
 import { LogsView } from './ui/LogsView';
-import { FIRST_VIEW, MENU, menuItem, viewFromHash, type ViewId } from './ui/menu';
+import { FIRST_VIEW, MENU, menuItem, viewFromHash, type MenuItem, type ViewId } from './ui/menu';
 
 interface Status {
   version: string;
@@ -118,23 +124,6 @@ function noInternet(r: CheckReport): boolean {
   return r.contacts.length > 0 && r.contacts.every((c) => c.status === null);
 }
 
-function CopyButton({ text, label }: { text: string; label: string }) {
-  const [done, setDone] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        void navigator.clipboard.writeText(text).then(() => {
-          setDone(true);
-          setTimeout(() => setDone(false), 1500);
-        });
-      }}
-    >
-      {done ? 'Copied' : label}
-    </button>
-  );
-}
-
 function Contacts({ contacts }: { contacts: Contact[] }) {
   if (contacts.length === 0) return <p className="soft">No address was contacted.</p>;
   return (
@@ -188,6 +177,11 @@ export default function CheckPage() {
   const [running, setRunning] = useState(false);
   const [run, setRun] = useState<ToolRun | null>(null);
 
+  const [docs, setDocs] = useState<DocsPayload | null>(null);
+  const [docsFailed, setDocsFailed] = useState(false);
+  const [docsTry, setDocsTry] = useState(0);
+  const [docsClient, setDocsClient] = useState<ClientId>('cursor');
+
   useEffect(() => {
     setOrigin(window.location.origin);
     fetch('/api/status')
@@ -208,7 +202,30 @@ export default function CheckPage() {
     return () => window.removeEventListener('hashchange', follow);
   }, []);
 
-  const showing = menuItem(view);
+  // The docs are read from Scrapy the first time one of their pages is opened.
+  const wantsDocs = view === 'docs-humans' || view === 'docs-ai';
+  const hasDocs = docs !== null;
+  useEffect(() => {
+    if (!wantsDocs || hasDocs) return undefined;
+    let stale = false;
+    setDocsFailed(false);
+    fetch('/api/docs', { cache: 'no-store' })
+      .then((r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json();
+      })
+      .then((d: DocsPayload) => {
+        if (!stale) setDocs(d);
+      })
+      .catch(() => {
+        if (!stale) setDocsFailed(true);
+      });
+    return () => {
+      stale = true;
+    };
+  }, [wantsDocs, hasDocs, docsTry]);
+
+  const showing: MenuItem = menuItem(view);
   const closed = status !== null && !status.open;
 
   async function runChecks() {
@@ -297,8 +314,11 @@ export default function CheckPage() {
 
       {/* While the menu is open, the page behind it is out of reach. */}
       <main inert={menuOpen} className={view === 'logs' ? 'wide' : undefined}>
-        <h1>{showing.label}</h1>
+        <h1>{showing.title ?? showing.label}</h1>
         <p className="lead">{showing.about}</p>
+
+        {view === 'docs-humans' && <DocsHumans docs={docs} origin={origin} failed={docsFailed} onRetry={() => setDocsTry((t) => t + 1)} client={docsClient} onClient={setDocsClient} />}
+        {view === 'docs-ai' && <DocsAi docs={docs} origin={origin} failed={docsFailed} onRetry={() => setDocsTry((t) => t + 1)} />}
 
         {/* Always there, so that the feed keeps its calls and its unfolded cards while another part shows. It only asks for news while it shows. */}
         <div hidden={view !== 'logs'}>
@@ -441,6 +461,9 @@ export default function CheckPage() {
                 {status.limits.dailyCalls.toLocaleString('en-US')} calls a day in total.
               </p>
             )}
+            <p className="soft" style={{ marginTop: 12, marginBottom: 0 }}>
+              Where to put this address in your AI app is in the docs: <a href="#docs-humans">For humans</a>.
+            </p>
           </section>
         )}
 

@@ -77,6 +77,8 @@ export const PAGE = {
   thinChars: 500,
   /** How long that second reading may take. */
   secondOpinionMs: 15_000,
+  /** How long Scrapy remembers which way of loading worked for a site. */
+  siteMemorySec: 24 * 3_600,
 } as const;
 
 export const REST = {
