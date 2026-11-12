@@ -1,0 +1,1826 @@
+:root {
+  --bg: #f6f7f9;
+  --card: #ffffff;
+  --ink: #14171f;
+  --soft: #5b6472;
+  --line: #e1e4ea;
+  --accent: #2f5bea;
+  --accent-ink: #ffffff;
+  --good: #0f7b47;
+  --good-bg: #e3f5ec;
+  --bad: #b3261e;
+  --bad-bg: #fbe9e7;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3d7;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+main {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 28px 20px 80px;
+}
+
+h1 {
+  font-size: 30px;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font-size: 19px;
+  margin: 0 0 4px;
+}
+
+/* "h2.label": a small heading that looks like an h3, where an h3 would skip a level. */
+h3,
+h2.label {
+  font-size: 14px;
+  margin: 22px 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--soft);
+}
+
+p {
+  margin: 0 0 12px;
+}
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 6px;
+}
+
+.lead {
+  color: var(--soft);
+  margin: 6px 0 22px;
+}
+
+.top + .lead {
+  margin-top: 0;
+}
+
+.soft {
+  color: var(--soft);
+  font-size: 14.5px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px 22px;
+  margin-bottom: 18px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.between {
+  justify-content: space-between;
+}
+
+.pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: #eceff4;
+  color: var(--soft);
+}
+
+.pill.good {
+  background: var(--good-bg);
+  color: var(--good);
+}
+
+.pill.bad {
+  background: var(--bad-bg);
+  color: var(--bad);
+}
+
+.pill.warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+code,
+.mono {
+  font-family: var(--mono);
+  font-size: 13.5px;
+}
+
+.address {
+  flex: 1 1 320px;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fafbfc;
+  overflow-wrap: anywhere;
+}
+
+button {
+  font: inherit;
+  font-weight: 600;
+  padding: 9px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: #b9c0cc;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+button.primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+button.tab {
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-family: var(--mono);
+  font-size: 13.5px;
+}
+
+button.tab.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 12px 0 4px;
+}
+
+input[type='text'],
+input[type='password'],
+input[type='number'],
+select {
+  width: 100%;
+  font: inherit;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+}
+
+input:focus,
+select:focus,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* The book of keys on the dashboard. */
+table.keys {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 4px 0 12px;
+}
+
+table.keys td {
+  padding: 8px 8px 8px 0;
+  border-top: 1px solid var(--line);
+  vertical-align: middle;
+  font-size: 14px;
+}
+
+table.keys td:last-child {
+  text-align: right;
+  padding-right: 0;
+  white-space: nowrap;
+}
+
+.fresh-key {
+  border: 1px solid var(--good);
+  background: var(--good-bg);
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin: 0 0 12px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0 14px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-weight: 400;
+}
+
+.scroll {
+  overflow-x: auto;
+}
+
+/* On a narrow screen a table is scrolled sideways. Without this, its last column is
+   squeezed to a few letters per line, and every row becomes several times taller than
+   it needs to be. */
+.scroll table {
+  min-width: 600px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14.5px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 8px 10px 8px 0;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+th {
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--soft);
+  font-weight: 600;
+}
+
+td.num {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+td.note {
+  color: var(--soft);
+  overflow-wrap: anywhere;
+}
+
+pre {
+  margin: 0;
+  padding: 14px 16px;
+  background: #0f1420;
+  color: #e6e9f0;
+  border-radius: 10px;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 560px;
+  overflow: auto;
+}
+
+.error {
+  background: var(--bad-bg);
+  color: var(--bad);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 12px;
+}
+
+/* A link inside a message keeps the colour of the message: it stays readable on the tinted ground. */
+.error a {
+  color: inherit;
+  font-weight: 600;
+}
+
+footer {
+  color: var(--soft);
+  font-size: 13.5px;
+  margin-top: 28px;
+}
+
+a {
+  color: var(--accent);
+}
+
+/* --- The top bar and the menu drawer --------------------------------------- */
+
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 10px 16px;
+  background: rgba(246, 247, 249, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.bar-end {
+  margin-left: auto;
+}
+
+button.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 10px;
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgba(15, 20, 32, 0.45);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.2s ease,
+    visibility 0s linear 0.2s;
+}
+
+.backdrop.open {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.2s ease;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  width: min(300px, 86vw);
+  overflow-y: auto;
+  /* Scrolling to the end of the menu does not start scrolling the page behind it. */
+  overscroll-behavior: contain;
+  background: var(--card);
+  border-right: 1px solid var(--line);
+  box-shadow: 0 10px 40px rgba(15, 20, 32, 0.18);
+  /* Closed: moved out of sight to the left, and hidden so the keyboard cannot reach it. */
+  transform: translateX(-104%);
+  visibility: hidden;
+  transition:
+    transform 0.22s ease,
+    visibility 0s linear 0.22s;
+}
+
+.drawer.open {
+  transform: none;
+  visibility: visible;
+  transition: transform 0.22s ease;
+}
+
+.drawer:focus {
+  outline: none;
+}
+
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 12px 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.drawer-section {
+  padding: 16px 10px 6px;
+}
+
+.drawer-section h2 {
+  margin: 0 10px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--soft);
+}
+
+.drawer-section ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.drawer-section a {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--ink);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.drawer-section a:hover {
+  background: #f0f2f6;
+}
+
+.drawer-section a[aria-current='page'] {
+  background: #e9eefd;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.drawer-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: auto;
+  padding: 14px 20px 18px;
+  font-size: 13px;
+}
+
+.drawer-section a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* People who asked their device for less motion get the menu without the slide. */
+@media (prefers-reduced-motion: reduce) {
+  .drawer,
+  .drawer.open,
+  .backdrop,
+  .backdrop.open {
+    transition: none;
+  }
+}
+
+/* --- The live feed: a terminal, or a network inspector ---------------------- */
+
+main.wide {
+  max-width: 1180px;
+}
+
+.term {
+  --t-bg: #0b1020;
+  --t-bar: #121a2e;
+  --t-line: #1c2740;
+  --t-ink: #d7deea;
+  --t-dim: #8d98ab;
+  --t-good: #3ddc97;
+  --t-bad: #ff8585;
+  --t-warn: #f5c26b;
+  --t-blue: #7ab8ff;
+  --t-violet: #c9a8ff;
+  background: var(--t-bg);
+  color: var(--t-ink);
+  border: 1px solid var(--t-line);
+  border-radius: 12px;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.term-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--t-bar);
+  border-bottom: 1px solid var(--t-line);
+}
+
+.term-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--t-good);
+}
+
+.term-state::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.term-state.live::before {
+  animation: term-pulse 1.6s ease-in-out infinite;
+}
+
+.term-state.paused,
+.term-state.connecting {
+  color: var(--t-warn);
+}
+
+.term-state.offline {
+  color: var(--t-bad);
+}
+
+.term-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--t-dim);
+}
+
+.term-count {
+  flex: none;
+  color: var(--t-dim);
+}
+
+.term button {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #2b3856;
+  background: #18223a;
+  color: var(--t-ink);
+}
+
+.term button:hover:not(:disabled) {
+  border-color: #46587f;
+}
+
+.term button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.term button:focus-visible,
+.term a:focus-visible {
+  outline: 2px solid var(--t-blue);
+  outline-offset: 1px;
+}
+
+.term a {
+  color: var(--t-blue);
+}
+
+/* One line for each call: the same columns in the heading and in every row. */
+.term-cols,
+.term button.log-row {
+  display: grid;
+  grid-template-columns: 12px 92px 88px minmax(0, 1fr) minmax(0, 230px) 56px 56px;
+  gap: 0 12px;
+  align-items: baseline;
+  padding: 6px 12px;
+}
+
+/* "Took" holds numbers: heading and values both sit against the right edge. */
+.term-cols span:nth-child(6) {
+  text-align: right;
+}
+
+.term-cols {
+  border-bottom: 1px solid var(--t-line);
+  color: var(--t-dim);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.term-feed {
+  position: relative;
+  height: min(62vh, 680px);
+  min-height: 280px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.term-feed ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.term button.log-row {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--t-line);
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+}
+
+.term button.log-row:hover,
+.log.open > button.log-row {
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.term button.log-row:focus-visible {
+  outline-offset: -2px;
+}
+
+.log.failed > button.log-row {
+  background: rgba(255, 133, 133, 0.07);
+}
+
+.log-caret,
+.log-time,
+.log-method,
+.log-dim {
+  color: var(--t-dim);
+}
+
+.log-caret {
+  align-self: center;
+  transition: transform 0.12s ease;
+}
+
+.log.open > button.log-row .log-caret {
+  transform: rotate(90deg);
+}
+
+.log-time,
+.log-took {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.log-tool {
+  color: var(--t-ink);
+  white-space: nowrap;
+}
+
+.log-tool.search_web {
+  color: var(--t-blue);
+}
+
+.log-tool.fetch_url {
+  color: var(--t-violet);
+}
+
+.log-input,
+.log-method {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.log-took {
+  text-align: right;
+}
+
+.log-ok {
+  color: var(--t-good);
+  font-weight: 700;
+}
+
+.log-bad {
+  color: var(--t-bad);
+  font-weight: 700;
+}
+
+.log-card {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 12px 14px 16px 36px;
+  background: #0e1528;
+  border-bottom: 1px solid var(--t-line);
+}
+
+.log-field {
+  display: grid;
+  grid-template-columns: 124px minmax(0, 1fr);
+  gap: 0 12px;
+}
+
+.log-field dt {
+  color: var(--t-dim);
+  white-space: nowrap;
+}
+
+.log-field dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.log-icon {
+  display: inline-block;
+  width: 1.9em;
+}
+
+.log-field .log-bad {
+  font-weight: 400;
+}
+
+.log-steps {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12.5px;
+}
+
+.log-steps .log-ok,
+.log-steps .log-bad {
+  display: inline-block;
+  width: 2.2em;
+  font-weight: 700;
+}
+
+.term button.log-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--t-blue);
+  font-size: 13px;
+  font-weight: 400;
+  text-align: left;
+}
+
+.term button.log-link:hover {
+  text-decoration: underline;
+}
+
+.log-payload {
+  margin-top: 8px;
+}
+
+.log-payload-bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.log-payload-bar [role='group'] {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.term .log-payload-bar button.on {
+  background: var(--t-ink);
+  border-color: var(--t-ink);
+  color: var(--t-bg);
+}
+
+.term pre {
+  max-height: 420px;
+  padding: 12px 14px;
+  background: #070b16;
+  border: 1px solid var(--t-line);
+  border-radius: 8px;
+  color: var(--t-ink);
+  font-size: 12.5px;
+}
+
+.term-note,
+.term-wait {
+  margin: 0;
+  padding: 10px 12px 10px 36px;
+  color: var(--t-dim);
+}
+
+.term-note {
+  padding-top: 18px;
+}
+
+.term-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  margin-right: 8px;
+  vertical-align: -2px;
+  background: var(--t-good);
+  animation: term-blink 1.1s steps(1, end) infinite;
+}
+
+.term button.term-new {
+  position: sticky;
+  bottom: 10px;
+  display: block;
+  width: max-content;
+  margin: 0 auto 10px;
+  padding: 5px 14px;
+  border-color: var(--t-good);
+  border-radius: 999px;
+  background: #10261f;
+  color: var(--t-good);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+.term-foot {
+  margin: 10px 0 0;
+}
+
+@keyframes term-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(61, 220, 151, 0.55);
+  }
+  50% {
+    opacity: 0.55;
+    box-shadow: 0 0 0 5px rgba(61, 220, 151, 0);
+  }
+}
+
+@keyframes term-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* A narrow screen: two lines for each call, and the method only in the card. */
+@media (max-width: 700px) {
+  .term-cols {
+    display: none;
+  }
+
+  .term button.log-row {
+    grid-template-columns: 12px auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      'caret time tool took mark'
+      'caret input input input input';
+    gap: 2px 10px;
+    padding: 8px 10px;
+  }
+
+  .log-caret {
+    grid-area: caret;
+  }
+
+  .log-time {
+    grid-area: time;
+  }
+
+  .log-tool {
+    grid-area: tool;
+  }
+
+  .log-input {
+    grid-area: input;
+  }
+
+  .log-method {
+    display: none;
+  }
+
+  .log-took {
+    grid-area: took;
+  }
+
+  .log-row > .log-ok,
+  .log-row > .log-bad {
+    grid-area: mark;
+  }
+
+  .log-card {
+    padding: 12px 12px 16px 14px;
+  }
+
+  .log-field {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .log-field dd {
+    padding-left: 1.9em;
+  }
+
+  .term-title {
+    display: none;
+  }
+
+  .term-count {
+    flex: 1;
+  }
+
+  .term-note,
+  .term-wait {
+    padding-left: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .term-state.live::before,
+  .term-cursor {
+    animation: none;
+  }
+
+  .log-caret {
+    transition: none;
+  }
+}
+
+/* --- The docs ---------------------------------------------------------------- */
+
+.small {
+  font-size: 13.5px;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+/* A link that looks like a button, next to a real button. */
+a.button {
+  display: inline-block;
+  font-weight: 600;
+  padding: 9px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+a.button:hover {
+  border-color: #b9c0cc;
+}
+
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* The bar of the page is sticky. A section that is scrolled to must not end up under it. */
+.doc {
+  scroll-margin-top: 76px;
+}
+
+.doc:focus {
+  outline: none;
+}
+
+.doc h2 {
+  margin-bottom: 10px;
+}
+
+.doc h3 {
+  margin-top: 26px;
+}
+
+.doc li {
+  margin-bottom: 8px;
+}
+
+.doc-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin: -6px 0 18px;
+  font-size: 14px;
+}
+
+.doc-nav > span {
+  color: var(--soft);
+  margin-right: 4px;
+}
+
+.doc-nav button {
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.doc-foot {
+  margin: 4px 2px 0;
+}
+
+.facts {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0 0;
+  font-size: 14.5px;
+}
+
+.facts > div {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.facts dt {
+  color: var(--soft);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.notice {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #f3f5f9;
+  font-size: 14.5px;
+}
+
+.notice.warn {
+  border-color: #f0dfa8;
+  background: var(--warn-bg);
+}
+
+.notice code,
+.doc p code,
+.doc li code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(20, 23, 31, 0.07);
+  overflow-wrap: anywhere;
+}
+
+button.tab.plain {
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.doc-panel {
+  margin-top: 14px;
+}
+
+.codeblock {
+  margin-bottom: 12px;
+  border-radius: 10px;
+  background: #0f1420;
+  overflow: hidden;
+}
+
+/* The bar on top of a block: what the block is, and the copy button. */
+.codeblock-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 8px 6px 16px;
+  border-bottom: 1px solid #262e42;
+  color: #b4bdcc;
+  font-size: 13px;
+}
+
+.codeblock pre {
+  border-radius: 0;
+}
+
+/* Code keeps its lines. A line that is too long is scrolled to, not broken. */
+.codeblock pre.keep {
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+button.codeblock-copy {
+  flex: none;
+  padding: 3px 10px;
+  border-color: #3a4359;
+  background: #1c2333;
+  color: #e6e9f0;
+  font-size: 12.5px;
+}
+
+button.codeblock-copy:hover:not(:disabled) {
+  border-color: #6b7896;
+}
+
+pre:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.plain-steps {
+  margin: 0;
+  padding-left: 22px;
+}
+
+.plain-steps li {
+  margin-bottom: 14px;
+}
+
+.plain-steps .codeblock {
+  margin-top: 8px;
+}
+
+/* Free, Fast, Smart: three boxes side by side. */
+.three {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0 4px;
+}
+
+.three > div {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fafbfc;
+}
+
+.three h3 {
+  margin: 0 0 6px;
+  color: var(--accent);
+}
+
+.three p {
+  margin: 0;
+  font-size: 14.5px;
+}
+
+/* The steps of a search or a page, as a ladder: a number on a line, the text beside it. */
+.ladder {
+  list-style: none;
+  counter-reset: step;
+  margin: 12px 0 10px;
+  padding: 0;
+}
+
+.ladder > li {
+  position: relative;
+  counter-increment: step;
+  margin: 0;
+  padding: 0 0 16px 42px;
+}
+
+.ladder > li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 26px;
+  text-align: center;
+}
+
+.ladder > li::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: 30px;
+  bottom: 2px;
+  width: 2px;
+  background: var(--line);
+}
+
+.ladder > li:last-child {
+  padding-bottom: 0;
+}
+
+.ladder > li:last-child::after {
+  display: none;
+}
+
+.step-title {
+  font-weight: 600;
+  line-height: 26px;
+}
+
+.step-text {
+  color: var(--soft);
+  font-size: 14.5px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 1px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chip small {
+  color: var(--soft);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+/* One line of the live feed, taken apart: each piece with its name under it. */
+.anatomy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+  margin: 4px 0 16px;
+  padding: 16px 18px 14px;
+  border-radius: 10px;
+  background: #0f1420;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.anatomy-part {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.anatomy-value {
+  color: #9aa5b8;
+  overflow-wrap: anywhere;
+}
+
+.anatomy-value.tool {
+  color: #7fb4ff;
+}
+
+.anatomy-value.ink {
+  color: #e6e9f0;
+}
+
+.anatomy-value.good {
+  color: #5fd39a;
+  font-weight: 700;
+}
+
+.anatomy-label {
+  padding-top: 5px;
+  border-top: 1px solid #36405a;
+  color: #b4bdcc;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.look-for,
+.notes,
+.ways {
+  margin: 0 0 12px;
+  padding-left: 22px;
+}
+
+.notes {
+  margin-top: 10px;
+  color: var(--soft);
+  font-size: 14.5px;
+}
+
+.ways li {
+  margin-bottom: 12px;
+}
+
+/* Words that Scrapy really says, quoted. */
+.said {
+  margin: 0 0 12px;
+  padding: 12px 16px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  background: #f3f5f9;
+  font-size: 14.5px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tool-name {
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.tool-title {
+  margin-left: 6px;
+  font-weight: 400;
+}
+
+/* On a narrow screen the parameter table is scrolled sideways. */
+.scroll table.params {
+  min-width: 680px;
+}
+
+.params td,
+.params th {
+  padding-right: 18px;
+}
+
+.params .mono {
+  font-size: 13px;
+}
+
+/* A second line in a cell: the limits under the type, the default under "optional". */
+.under {
+  display: block;
+  color: var(--soft);
+  font-size: 13.5px;
+}
+
+.limits td:first-child {
+  width: 30%;
+}
+
+.limits td.num {
+  width: 24%;
+  white-space: normal;
+}
+
+.starts {
+  font-size: 13px;
+}
+
+.starts + .starts {
+  margin-top: 4px;
+}
+
+details > summary {
+  cursor: pointer;
+  width: fit-content;
+  padding: 4px 2px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+details > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+details[open] > summary {
+  margin-bottom: 10px;
+}
+
+pre.rulebook {
+  max-height: 640px;
+}
+
+@media (max-width: 700px) {
+  .three {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .facts > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .anatomy {
+    gap: 12px 16px;
+  }
+
+  /* A narrow screen: the rows of these tables become blocks, one cell under the other,
+     so that nothing has to be scrolled to sideways. */
+  .scroll table.stack,
+  .scroll table.params {
+    min-width: 0;
+  }
+
+  /* The headings are taken out of sight, not away: a screen reader still has them. */
+  table.stack thead,
+  table.params thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  table.stack,
+  table.stack tbody,
+  table.params,
+  table.params tbody {
+    display: block;
+  }
+
+  table.stack tr,
+  table.params tr {
+    display: block;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  table.stack tr:first-child,
+  table.params tr:first-child {
+    border-top: 1px solid var(--line);
+  }
+
+  table.stack td,
+  table.params td {
+    display: block;
+    width: auto;
+    padding: 1px 0;
+    border: 0;
+  }
+
+  table.limits td:first-child,
+  table.limits td.num {
+    width: auto;
+  }
+
+  table.stack td:first-child {
+    font-weight: 600;
+  }
+
+  table.labelled td:first-child {
+    font-weight: 400;
+  }
+
+  table.labelled td[data-label]::before {
+    content: attr(data-label) ': ';
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  table.labelled td + td {
+    margin-top: 4px;
+  }
+
+  /* A parameter: its name, then type and "required" on one line, then what it is for. */
+  table.params td:first-child {
+    font-size: 14.5px;
+    font-weight: 700;
+  }
+
+  table.params td:nth-child(2),
+  table.params td:nth-child(3) {
+    display: inline-block;
+    margin-right: 14px;
+  }
+
+  table.params .under {
+    display: inline;
+  }
+
+  table.params .under::before {
+    content: ', ';
+  }
+}
+
+/* --- Release G - 1.0: the home page, the login page, the docs for everybody ---- */
+
+a.button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+a.button.primary:hover {
+  filter: brightness(1.08);
+}
+
+a.button.small {
+  padding: 6px 14px;
+  font-size: 14.5px;
+}
+
+a.button.big {
+  padding: 12px 22px;
+  font-size: 17px;
+  border-radius: 10px;
+}
+
+/* A button that does not ask for attention: "Log out" at the bottom of the menu. */
+button.quiet {
+  padding: 6px 12px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--soft);
+}
+
+/* A button inside a sentence. */
+button.inline {
+  padding: 2px 10px;
+  font-size: 13.5px;
+}
+
+button.wide {
+  width: 100%;
+  margin-top: 16px;
+  padding: 11px 16px;
+}
+
+/* Links in the top bar: on the home page, and the two pages of the docs. */
+.bar-links,
+.bar-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px 14px;
+}
+
+.bar-links a:not(.button) {
+  color: var(--ink);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.bar-links a:not(.button):hover {
+  text-decoration: underline;
+}
+
+.bar-tabs {
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.bar-tabs a {
+  padding: 6px 12px;
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.bar-tabs a:hover {
+  background: #eceff4;
+}
+
+.bar-tabs a[aria-current='page'] {
+  background: #e9eefd;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+main.landing {
+  max-width: 980px;
+  padding-top: 0;
+}
+
+.hero {
+  padding: 72px 0 44px;
+  text-align: center;
+}
+
+.eyebrow {
+  margin: 0 0 14px;
+  color: var(--accent);
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  font-size: clamp(38px, 7vw, 60px);
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+
+.hero-lead {
+  max-width: 640px;
+  margin: 20px auto 0;
+  color: var(--soft);
+  font-size: 18.5px;
+}
+
+.cta {
+  justify-content: center;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.hero-note {
+  max-width: 600px;
+  margin: 26px auto 0;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--soft);
+  font-size: 14.5px;
+}
+
+.hero-note strong {
+  color: var(--ink);
+}
+
+.hero-note code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(20, 23, 31, 0.07);
+  overflow-wrap: anywhere;
+}
+
+.section-title {
+  margin: 44px 0 14px;
+  font-size: 22px;
+  letter-spacing: -0.015em;
+}
+
+.tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.tools .card {
+  margin-bottom: 14px;
+}
+
+.tools .card p {
+  margin: 8px 0 0;
+}
+
+/* On the home page the name of a tool is a small label above its title. */
+.tools .tool-name {
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.tools h3.tool-title {
+  margin: 2px 0 0;
+  color: var(--ink);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.landing .three {
+  margin-top: 0;
+}
+
+.landing .three > div {
+  background: var(--card);
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.steps > li {
+  position: relative;
+  padding: 16px 16px 16px 54px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  font-size: 15px;
+  counter-increment: step;
+}
+
+.steps > li::before {
+  content: counter(step);
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #e9eefd;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 26px;
+  text-align: center;
+}
+
+.site-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin-top: 56px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.site-foot span {
+  margin-right: auto;
+}
+
+/* The login page: one card in the middle. */
+main.login {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 440px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-top: 40px;
+  padding-bottom: 40px;
+}
+
+.login > .brand {
+  align-self: center;
+  margin-bottom: 18px;
+  font-size: 24px;
+}
+
+.login .card {
+  padding: 26px 26px 28px;
+}
+
+.login h1 {
+  font-size: 24px;
+}
+
+.login .lead {
+  margin: 6px 0 14px;
+}
+
+.login-foot {
+  margin: 0;
+  text-align: center;
+}
+
+/* Empty until there is something to say. */
+#login-error:empty {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .tools,
+  .steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hero {
+    padding: 44px 0 30px;
+  }
+
+  .hero-lead {
+    font-size: 17px;
+  }
+
+  .cta .button {
+    flex: 1 1 100%;
+    text-align: center;
+  }
+
+  /* The two pages of the docs stay on one line next to the name. */
+  .bar-tabs {
+    margin-left: 0;
+  }
+
+  .bar-tabs a {
+    padding: 6px 9px;
+    font-size: 14px;
+  }
+}
