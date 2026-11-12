@@ -1,5 +1,5 @@
 /**
- * The log of tool calls, behind the "Live feed" of the check page.
+ * The log of tool calls, behind the "Live feed" of the dashboard.
  *
  * Every call that Scrapy works on is written down: when, which tool, what was
  * asked, how the answer was obtained, how long it took, and the answer itself.
@@ -48,7 +48,7 @@ export interface LogEntry {
   /** When the call arrived, in milliseconds since 1970. */
   at: number;
   tool: string;
-  /** Who made the call: an agent over MCP, or the "Try a tool" box of the check page. */
+  /** Who made the call: an agent over MCP, or the "Try a tool" box of the dashboard. */
   from: 'agent' | 'page';
   /** The question or the link, shortened. */
   input: string;

@@ -1,6 +1,6 @@
 /**
  * A record of what one tool call did: every address it contacted, every way it
- * tried and how long each took. The check page shows it, and it is how the
+ * tried and how long each took. The dashboard shows it, and it is how the
  * "safe position" promise can be verified.
  */
 

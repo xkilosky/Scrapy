@@ -1,9 +1,15 @@
 /**
  * Every setting of Scrapy in one place.
- * None of these is a key or a password. Scrapy needs no account anywhere.
+ *
+ * Scrapy needs no account and no key from any other service. One setting is a
+ * secret all the same: the owner's own password, SCRAPY_PASSWORD (see
+ * ownerPassword below).
  */
 
-export const VERSION = '0.1.0';
+/** The version as programs want it: in package.json, in the MCP handshake, and in the name Scrapy gives itself. */
+export const VERSION = '1.0.0';
+/** The name of the release, as people see it. */
+export const RELEASE = 'G - 1.0';
 export const REPO_URL = 'https://github.com/xkilosky/Scrapy';
 
 /** How Scrapy names itself to every service and site it talks to. */
@@ -104,16 +110,33 @@ export const LOGS = {
 } as const;
 
 /**
+ * The owner's password, from the setting SCRAPY_PASSWORD.
+ *
+ * With a password, Scrapy is personal: the dashboard, the log and the tools
+ * are for its owner alone (lib/access.ts and lib/owner.ts). Spaces around the
+ * password are dropped, because a pasted setting often has them.
+ *
+ * "usable" is false for a password shorter than PASSWORD_MIN. A short password
+ * can be guessed, so Scrapy then lets nobody in, and says why on the login page.
+ */
+export const PASSWORD_MIN = 10;
+
+export function ownerPassword(): { set: boolean; usable: boolean; value: string } {
+  const value = (process.env.SCRAPY_PASSWORD ?? '').trim();
+  return { set: value !== '', usable: value.length >= PASSWORD_MIN, value };
+}
+
+/**
  * Is the log on?
  *
  * The log holds what was asked and what was answered, and everybody who can
- * open Scrapy's page can read it. So it is on where that page is private: on a
- * developer's machine and on Vercel's test addresses, which need the owner's
- * Vercel login. On Vercel's public address ("production") it is off.
+ * open the Live feed can read it. So it is on where the feed is private: on a
+ * developer's machine, on Vercel's test addresses (which need the owner's
+ * Vercel login), and wherever Scrapy has a password, because the feed is then
+ * shown to its owner only. On a public address without a password it is off.
  *
  * SCRAPY_LOGS=off switches it off everywhere. SCRAPY_LOGS=on switches it on
- * everywhere, the public address included: only for an address that strangers
- * cannot open.
+ * everywhere: only for an address that strangers cannot open.
  */
 export function logsSetting(): 'on' | 'off' | 'auto' {
   const raw = (process.env.SCRAPY_LOGS ?? '').trim().toLowerCase();
@@ -125,7 +148,7 @@ export function logsSetting(): 'on' | 'off' | 'auto' {
 export function logsOn(): boolean {
   const setting = logsSetting();
   if (setting !== 'auto') return setting === 'on';
-  return process.env.VERCEL_ENV !== 'production';
+  return process.env.VERCEL_ENV !== 'production' || ownerPassword().set;
 }
 
 export function limits(): { visitorPerMinute: number; dailyCalls: number } {

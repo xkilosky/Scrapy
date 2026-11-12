@@ -8,7 +8,7 @@ process.env.TZ = 'America/Guatemala';
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import CheckPage from '@/app/page';
+import Console from '@/app/ui/Console';
 import { clock, LogsView, pollDelay, took } from '@/app/ui/LogsView';
 import { MENU } from '@/app/ui/menu';
 import type { LogEntry } from '@/lib/logs';
@@ -70,7 +70,7 @@ beforeEach(() => {
       const url = String(input);
       server.asked.push(url);
       if (url === '/api/status') {
-        return Response.json({ name: 'scrapy', version: '0.1.0', open: true, mode: 'safe', tools: [], limits: { visitorPerMinute: 30, dailyCalls: 1500 }, usage: { today: 0 }, where: { vercel: false, env: null, region: null } });
+        return Response.json({ name: 'scrapy', version: '1.0.0', release: 'G - 1.0', access: 'open', allowed: true, open: true, mode: 'safe', tools: [], limits: { visitorPerMinute: 30, dailyCalls: 1500 }, usage: { today: 0 }, where: { vercel: false, env: null, region: null } });
       }
       if (!url.startsWith('/api/logs')) return new Response('not found', { status: 404 });
       if (server.mode === 'down') throw new TypeError('fetch failed');
@@ -128,7 +128,7 @@ describe('the drawer', () => {
     expect(MENU.slice(0, 2).map((section) => `${section.title}: ${section.items.map((item) => item.label).join(', ')}`)).toEqual(['Dashboard: Run checks, The address for your agent, Try a tool', 'Logs: Live feed']);
     server.add(entry());
     const u = user();
-    render(<CheckPage />);
+    render(<Console />);
     // The feed is not showing yet, and asks nothing.
     await pass(5_000);
     expect(logCalls()).toEqual([]);
@@ -153,7 +153,7 @@ describe('the drawer', () => {
     const first = server.add(entry({ input: 'the first call' }));
     window.history.replaceState(null, '', '/#logs');
     const u = user();
-    render(<CheckPage />);
+    render(<Console />);
     await u.click(await screen.findByRole('button', { name: /the first call/ }));
     expect(document.getElementById(`log-${first.id}`)).toBeTruthy();
 
@@ -449,7 +449,10 @@ describe('where the log is off', () => {
     server.mode = 'public';
     render(<LogsView active />);
     expect(await screen.findByRole('heading', { name: 'The log is off at this address' })).toBeTruthy();
-    expect(screen.getByText(/This is Scrapy's public address\..*So Scrapy writes nothing down here\./)).toBeTruthy();
+    expect(screen.getByText(/This is Scrapy's public address, and it has no password\..*So Scrapy writes nothing down here\./)).toBeTruthy();
+    // What makes the log safe to keep there.
+    expect(screen.getByText(/With a\s+password .* Scrapy is personal: the log is then on, and only you can read it\./)).toBeTruthy();
+    expect(screen.getByText('SCRAPY_PASSWORD')).toBeTruthy();
     server.asked.length = 0;
     await pass(60_000);
     expect(logCalls()).toEqual([]);

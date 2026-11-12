@@ -16,6 +16,17 @@ import { CodeBlock, CopyButton } from './CopyButton';
 /** The header Vercel accepts instead of a login, at a test address. */
 const SECRET_HEADER = 'x-vercel-protection-bypass';
 
+/** What the examples say where the owner's key goes. */
+export const KEY_PLACE = 'YOUR_KEY';
+
+/** What an AI has to send along, besides the address. */
+export interface Needs {
+  /** Vercel's secret: at a test address, which Vercel guards with a login. */
+  secret?: boolean;
+  /** The owner's key: at a Scrapy that is personal. */
+  key?: boolean;
+}
+
 export type ClientId = 'cursor' | 'claude' | 'vscode' | 'local' | 'code';
 
 export const CLIENTS: { id: ClientId; label: string }[] = [
@@ -37,10 +48,26 @@ const json = (value: unknown): string => JSON.stringify(value, null, 2);
 
 /**
  * What to put where, for each kind of AI app.
- * With a secret, every example also sends the header that lets it past Vercel's login.
+ *
+ * A personal Scrapy wants its owner's key with every request, and a test
+ * address on Vercel wants Vercel's secret. Every example sends what is needed.
  */
-export function connectSnippets(address: string, withSecret: boolean): Record<ClientId, Snippet> {
-  const headers = withSecret ? { headers: { [SECRET_HEADER]: 'YOUR_SECRET' } } : {};
+export function connectSnippets(address: string, needs: Needs = {}): Record<ClientId, Snippet> {
+  const withKey = needs.key === true;
+  const withSecret = needs.secret === true;
+  const sent: Record<string, string> = { ...(withKey ? { Authorization: `Bearer ${KEY_PLACE}` } : {}), ...(withSecret ? { [SECRET_HEADER]: 'YOUR_SECRET' } : {}) };
+  const any = withKey || withSecret;
+  const headers = any ? { headers: sent } : {};
+
+  // In code, a secret belongs in the environment, not in the file.
+  const inCode: string[] = [...(withKey ? ['Authorization: `Bearer ${process.env.SCRAPY_KEY}`'] : []), ...(withSecret ? [`'${SECRET_HEADER}': process.env.SCRAPY_SECRET`] : [])];
+  const codeHeaders = (indent: string): string => (inCode.length === 1 ? `{ ${inCode[0] ?? ''} }` : `{\n${inCode.map((line) => `${indent}  ${line},`).join('\n')}\n${indent}}`);
+  const envNote = [...(withKey ? ['your key in the environment variable SCRAPY_KEY'] : []), ...(withSecret ? ["Vercel's secret in SCRAPY_SECRET"] : [])].join(' and ');
+
+  // mcp-remote takes a header as one word, so its value comes from the environment.
+  const remoteArgs = ['-y', 'mcp-remote', address, ...(withKey ? ['--header', 'Authorization:${SCRAPY_AUTH}'] : []), ...(withSecret ? ['--header', `${SECRET_HEADER}:\${SCRAPY_SECRET}`] : [])];
+  const remoteEnv = { ...(withKey ? { SCRAPY_AUTH: `Bearer ${KEY_PLACE}` } : {}), ...(withSecret ? { SCRAPY_SECRET: 'YOUR_SECRET' } : {}) };
+
   return {
     cursor: {
       where: 'Put this in the file .cursor/mcp.json in your project. To have Scrapy in every project, put it in ~/.cursor/mcp.json instead.',
@@ -48,7 +75,14 @@ export function connectSnippets(address: string, withSecret: boolean): Record<Cl
     },
     claude: {
       where: 'Run this once in a terminal.',
-      blocks: [{ caption: 'Terminal', code: `claude mcp add --transport http scrapy ${address}${withSecret ? ` \\\n  --header "${SECRET_HEADER}: YOUR_SECRET"` : ''}` }],
+      blocks: [
+        {
+          caption: 'Terminal',
+          code: `claude mcp add --transport http scrapy ${address}${Object.entries(sent)
+            .map(([name, value]) => ` \\\n  --header "${name}: ${value}"`)
+            .join('')}`,
+        },
+      ],
     },
     vscode: {
       where: 'Put this in a file named .mcp.json at the top of your project. Or run "MCP: Add Server" in VS Code, choose HTTP, and paste the address.',
@@ -59,18 +93,12 @@ export function connectSnippets(address: string, withSecret: boolean): Record<Cl
       blocks: [
         {
           caption: "The app's MCP settings file",
-          code: json({
-            mcpServers: {
-              scrapy: withSecret
-                ? { command: 'npx', args: ['-y', 'mcp-remote', address, '--header', `${SECRET_HEADER}:\${SCRAPY_SECRET}`], env: { SCRAPY_SECRET: 'YOUR_SECRET' } }
-                : { command: 'npx', args: ['-y', 'mcp-remote', address] },
-            },
-          }),
+          code: json({ mcpServers: { scrapy: any ? { command: 'npx', args: remoteArgs, env: remoteEnv } : { command: 'npx', args: remoteArgs } } }),
         },
       ],
     },
     code: {
-      where: 'In an agent you build yourself, an MCP library does the talking. Here are two for TypeScript.',
+      where: `In an agent you build yourself, an MCP library does the talking. Here are two for TypeScript.${any ? ` Put ${envNote}, not in the code.` : ''}`,
       blocks: [
         {
           caption: 'AI SDK (@ai-sdk/mcp)',
@@ -78,7 +106,7 @@ export function connectSnippets(address: string, withSecret: boolean): Record<Cl
             "import { createMCPClient } from '@ai-sdk/mcp';",
             '',
             'const scrapy = await createMCPClient({',
-            withSecret ? `  transport: {\n    type: 'http',\n    url: '${address}',\n    headers: { '${SECRET_HEADER}': process.env.SCRAPY_SECRET },\n  },` : `  transport: { type: 'http', url: '${address}' },`,
+            any ? `  transport: {\n    type: 'http',\n    url: '${address}',\n    headers: ${codeHeaders('    ')},\n  },` : `  transport: { type: 'http', url: '${address}' },`,
             '});',
             '',
             '// search_web and fetch_url, ready to hand to the model',
@@ -94,8 +122,8 @@ export function connectSnippets(address: string, withSecret: boolean): Record<Cl
             "import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';",
             '',
             "const scrapy = new Client({ name: 'my-agent', version: '1.0.0' });",
-            withSecret
-              ? `await scrapy.connect(\n  new StreamableHTTPClientTransport(new URL('${address}'), {\n    requestInit: { headers: { '${SECRET_HEADER}': process.env.SCRAPY_SECRET } },\n  }),\n);`
+            any
+              ? `await scrapy.connect(\n  new StreamableHTTPClientTransport(new URL('${address}'), {\n    requestInit: { headers: ${codeHeaders('    ')} },\n  }),\n);`
               : `await scrapy.connect(new StreamableHTTPClientTransport(new URL('${address}')));`,
             '',
             'const answer = await scrapy.callTool({',
@@ -110,12 +138,13 @@ export function connectSnippets(address: string, withSecret: boolean): Record<Cl
 }
 
 /** A call by hand that shows whether the address answers. */
-export function handCheck(address: string, withSecret: boolean): string {
+export function handCheck(address: string, needs: Needs = {}): string {
   return [
     `curl -s -X POST ${address} \\`,
     "  -H 'Content-Type: application/json' \\",
     "  -H 'Accept: application/json, text/event-stream' \\",
-    ...(withSecret ? [`  -H '${SECRET_HEADER}: YOUR_SECRET' \\`] : []),
+    ...(needs.key ? [`  -H 'Authorization: Bearer ${KEY_PLACE}' \\`] : []),
+    ...(needs.secret ? [`  -H '${SECRET_HEADER}: YOUR_SECRET' \\`] : []),
     `  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'`,
   ].join('\n');
 }
@@ -172,9 +201,28 @@ function Step({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function Connect({ address, where, secretNeeded, client, setClient }: { address: string; where: Facts['where']; secretNeeded: boolean; client: ClientId; setClient: (id: ClientId) => void }) {
-  const snippet = connectSnippets(address, secretNeeded)[client];
+interface ConnectProps {
+  address: string;
+  facts: Facts;
+  client: ClientId;
+  setClient: (id: ClientId) => void;
+  /** The owner's key, when the owner is logged in. It is never shown here, only copied. */
+  ownerKey: string | null;
+  /** Where the dashboard is, seen from this page: "" inside the dashboard, "/dashboard" outside it. */
+  dash: string;
+}
+
+function Connect({ address, facts, client, setClient, ownerKey, dash }: ConnectProps) {
+  const where = facts.where;
+  const personal = facts.access === 'personal';
+  const closed = facts.access === 'closed';
+  // Vercel's test addresses are behind Vercel's login. An agent needs Vercel's secret header to get past it.
+  const secretNeeded = where.vercel && where.env === 'preview';
+  const needs: Needs = { secret: secretNeeded, key: personal };
+  const snippet = connectSnippets(address, needs)[client];
   const onOwnMachine = typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
+  /** What the copy button of a block copies: the same text, with the real key where the block says YOUR_KEY. */
+  const filled = (code: string): string | undefined => (ownerKey && code.includes(KEY_PLACE) ? code.split(KEY_PLACE).join(ownerKey) : undefined);
 
   // Tabs the way a keyboard expects them: Tab reaches the chosen one, the arrow keys move between them.
   const onKey = (event: KeyboardEvent<HTMLDivElement>): void => {
@@ -191,7 +239,10 @@ function Connect({ address, where, secretNeeded, client, setClient }: { address:
   return (
     <section className="card doc" id="doc-connect" tabIndex={-1} aria-labelledby="doc-connect-title">
       <h2 id="doc-connect-title">1. Connect your AI</h2>
-      <p>Scrapy has one address. Your AI connects to it with MCP and gets the tools from it. Scrapy asks for no key and no account.</p>
+      <p>
+        Scrapy has one address. Your AI connects to it with MCP and gets the tools from it.{' '}
+        {personal ? 'This Scrapy is personal: it answers only to its owner. So your AI also sends the owner\u2019s key.' : 'Scrapy asks for no key and no account.'}
+      </p>
       <div className="row">
         <code className="address">{address}</code>
         <CopyButton text={address} />
@@ -203,10 +254,35 @@ function Connect({ address, where, secretNeeded, client, setClient }: { address:
         </div>
         <div>
           <dt>Key</dt>
-          <dd>None.</dd>
+          {personal ? (
+            <dd>
+              The owner&apos;s key, in the header <code>Authorization: Bearer {KEY_PLACE}</code>. The owner finds it on the dashboard, under <a href={`${dash}#address`}>The address for your agent</a>.
+            </dd>
+          ) : (
+            <dd>None.</dd>
+          )}
         </div>
       </dl>
 
+      {closed && (
+        <div className="notice warn" role="note">
+          <strong>This address is closed.</strong> Its owner has not opened it yet, so it answers no calls. The rest of this page says how it works once it is open.
+        </div>
+      )}
+      {personal && (
+        <div className="notice" role="note">
+          <strong>This Scrapy is personal.</strong> A request without the owner&apos;s key gets one sentence that says so, and nothing else.{' '}
+          {ownerKey ? (
+            <>
+              You are logged in, so the copy buttons below put your real key where the examples say <code>{KEY_PLACE}</code>. The key itself stays off the screen.
+            </>
+          ) : (
+            <>
+              In the examples below, put the key where they say <code>{KEY_PLACE}</code>. Keep it out of files you share.
+            </>
+          )}
+        </div>
+      )}
       {secretNeeded && (
         <div className="notice warn" role="note">
           <strong>This is a test address, and Vercel guards it.</strong> Vercel asks for your Vercel login before anything reaches Scrapy, and an AI cannot log in. To let an AI in, create a secret in the Vercel project, under Settings,
@@ -214,7 +290,7 @@ function Connect({ address, where, secretNeeded, client, setClient }: { address:
           <code>YOUR_SECRET</code>. Keep it out of files you share.
         </div>
       )}
-      {where.vercel && where.env === 'production' && (
+      {facts.access === 'open' && where.vercel && where.env === 'production' && (
         <div className="notice" role="note">
           <strong>This address is open.</strong> Anyone who has it can use Scrapy, within the limits below.
         </div>
@@ -246,8 +322,20 @@ function Connect({ address, where, secretNeeded, client, setClient }: { address:
       <div id="connect-panel" role="tabpanel" aria-labelledby={`tab-${client}`} className="doc-panel">
         <p>{snippet.where}</p>
         {snippet.blocks.map((block) => (
-          <CodeBlock key={block.caption} code={block.code} caption={block.caption} label={snippet.blocks.length === 1 ? `For ${CLIENTS.find((c) => c.id === client)?.label ?? client}` : block.caption} />
+          <CodeBlock
+            key={block.caption}
+            code={block.code}
+            copy={filled(block.code)}
+            caption={block.caption}
+            label={snippet.blocks.length === 1 ? `For ${CLIENTS.find((c) => c.id === client)?.label ?? client}` : block.caption}
+          />
         ))}
+        {personal && (
+          <p className="soft small">
+            An app with no place for a header can carry the key at the end of the address instead: <code>{address}?key={KEY_PLACE}</code>. Use this only where a header is not possible: an address is more easily shown or written down
+            somewhere than a header.
+          </p>
+        )}
         <p className="soft small">Apps change how they are set up. If this does not match what you see, look for &quot;MCP&quot; in your app&apos;s settings and give it the address above.</p>
       </div>
 
@@ -255,10 +343,11 @@ function Connect({ address, where, secretNeeded, client, setClient }: { address:
       <ol className="plain-steps">
         <li>
           <strong>By hand.</strong> This asks the address for its list of tools. The answer names <code>search_web</code> and <code>fetch_url</code>. If a login page or the word &quot;closed&quot; comes back instead, your AI will get the same.
-          <CodeBlock code={handCheck(address, secretNeeded)} caption="Terminal" label="A check by hand" />
+          {personal && ' If the answer says "personal", the key is missing or wrong.'}
+          <CodeBlock code={handCheck(address, needs)} copy={filled(handCheck(address, needs))} caption="Terminal" label="A check by hand" />
         </li>
         <li>
-          <strong>From your AI.</strong> Ask it which tools it has from Scrapy. Then ask it to search for something, and watch the call arrive in the <a href="#logs">Live feed</a>.
+          <strong>From your AI.</strong> Ask it which tools it has from Scrapy. Then ask it to search for something, and watch the call arrive in the <a href={`${dash}#logs`}>Live feed</a>.
         </li>
       </ol>
     </section>
@@ -271,7 +360,7 @@ function Limits({ docs }: { docs: DocsPayload }) {
   return (
     <section className="card doc" id="doc-limits" tabIndex={-1} aria-labelledby="doc-limits-title">
       <h2 id="doc-limits-title">2. Limits</h2>
-      <p>Scrapy is free because it uses the free doors of other services. The limits keep one AI from using up what everybody shares.</p>
+      <p>Scrapy is free because it uses the free doors of other services. Those doors are small. The limits keep an AI that runs in circles from using them up.</p>
       <div className="scroll">
         <table className="limits stack">
           <thead>
@@ -349,7 +438,7 @@ function Limits({ docs }: { docs: DocsPayload }) {
   );
 }
 
-function How({ docs }: { docs: DocsPayload }) {
+function How({ docs, dash }: { docs: DocsPayload; dash: string }) {
   const f = docs.facts;
   const helpers = [...new Set([...f.search.order, ...f.page.order].map((h) => h.name))];
   // The engines are asked two at a time.
@@ -432,7 +521,7 @@ function How({ docs }: { docs: DocsPayload }) {
         carry on meanwhile. For {n(f.page.siteMemoryHours)} hours Scrapy also remembers which way worked for a site, and tries that way first the next time.
       </p>
       <p className="soft small" style={{ marginBottom: 0 }}>
-        {MODE_TEXT[docs.mode] ?? ''} To see which helpers answer right now, and how fast, use <a href="#checks">Run checks</a>.
+        {MODE_TEXT[docs.mode] ?? ''} To see which helpers answer right now, and how fast, use <a href={`${dash}#checks`}>Run checks</a>.
       </p>
     </section>
   );
@@ -447,12 +536,12 @@ const ANATOMY: { value: string; label: string; tone?: string }[] = [
   { value: 'OK', label: 'Result', tone: 'good' },
 ];
 
-function Logs({ facts }: { facts: Facts }) {
+function Logs({ facts, dash }: { facts: Facts; dash: string }) {
   return (
     <section className="card doc" id="doc-logs" tabIndex={-1} aria-labelledby="doc-logs-title">
       <h2 id="doc-logs-title">4. How to read the logs</h2>
       <p>
-        The <a href="#logs">Live feed</a> shows every call your AI makes, the moment Scrapy has answered it. The newest call is at the bottom. One line is one call:
+        The <a href={`${dash}#logs`}>Live feed</a> shows every call your AI makes, the moment Scrapy has answered it. The newest call is at the bottom. One line is one call:
       </p>
 
       <div className="anatomy" role="img" aria-label="An example line of the live feed: 11:45:02 AM, search_web, how to fix hydration error, Tier 1 by Tavily and Exa, 0.4 seconds, OK">
@@ -541,7 +630,7 @@ function Logs({ facts }: { facts: Facts }) {
           <strong>Several FAILED lines with &quot;Not started&quot;.</strong> Your AI sends wrong arguments, or it is over a limit. Unfold one line: Result has the sentence the AI got, and that sentence names what was wrong.
         </li>
         <li>
-          <strong>&quot;None worked&quot; on many lines.</strong> The helpers are busy or cannot be reached. <a href="#checks">Run checks</a> shows which ones answer.
+          <strong>&quot;None worked&quot; on many lines.</strong> The helpers are busy or cannot be reached. <a href={`${dash}#checks`}>Run checks</a> shows which ones answer.
         </li>
         <li>
           <strong>The same call again and again, answered from Memory.</strong> No helper is asked for it, but your AI may be going in circles.
@@ -553,7 +642,9 @@ function Logs({ facts }: { facts: Facts }) {
 
       <p className="soft small" style={{ marginBottom: 0 }}>
         {facts.logs.on
-          ? `The log is on at this address. It keeps the last ${n(facts.logs.keep)} calls for up to ${n(facts.logs.hours)} hours, and everybody who can open this page can read them.`
+          ? `The log is on at this address. It keeps the last ${n(facts.logs.keep)} calls for up to ${n(facts.logs.hours)} hours. ${
+              facts.access === 'personal' ? 'Only the owner, logged in, can read them.' : 'Everybody who can open the Live feed can read them.'
+            }`
           : 'The log is off at this address, so the Live feed stays empty here. Scrapy writes nothing down.'}{' '}
         Pause stops the feed from asking for new calls. Clear empties the screen only.
       </p>
@@ -569,9 +660,13 @@ export interface McpDocProps {
   /** The kind of AI app chosen under "Where to put the address". The page keeps it, so that it is still chosen after a visit to another part. */
   client: ClientId;
   onClient: (id: ClientId) => void;
+  /** The owner's key, when the owner is logged in. */
+  ownerKey?: string | null;
+  /** Where the dashboard is, seen from this page: "" inside the dashboard (the default), "/dashboard" outside it. */
+  dash?: string;
 }
 
-export function McpDoc({ docs, origin, failed, onRetry, client, onClient }: McpDocProps) {
+export function McpDoc({ docs, origin, failed, onRetry, client, onClient, ownerKey = null, dash = '' }: McpDocProps) {
   if (failed) {
     return (
       <section className="card">
@@ -587,9 +682,6 @@ export function McpDoc({ docs, origin, failed, onRetry, client, onClient }: McpD
   if (!docs || !origin) return <p className="soft">Loading the docs...</p>;
 
   const address = `${origin}/api/mcp`;
-  const where = docs.facts.where;
-  // Vercel's test addresses are behind Vercel's login. An agent needs Vercel's secret header to get past it.
-  const secretNeeded = where.vercel && where.env === 'preview';
 
   return (
     <>
@@ -601,10 +693,10 @@ export function McpDoc({ docs, origin, failed, onRetry, client, onClient }: McpD
           </button>
         ))}
       </nav>
-      <Connect address={address} where={where} secretNeeded={secretNeeded} client={client} setClient={onClient} />
+      <Connect address={address} facts={docs.facts} client={client} setClient={onClient} ownerKey={ownerKey} dash={dash} />
       <Limits docs={docs} />
-      <How docs={docs} />
-      <Logs facts={docs.facts} />
+      <How docs={docs} dash={dash} />
+      <Logs facts={docs.facts} dash={dash} />
       <p className="soft small doc-foot">
         Your AI does not read this page. What it is told is on the page <a href="#docs-ai">For the AI</a>.
       </p>

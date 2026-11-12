@@ -458,7 +458,12 @@ describe('the rulebook for agents', () => {
 describe('what the docs page is given', () => {
   it('holds everything the two pages show', () => {
     const payload = docsPayload();
-    expect(Object.keys(payload)).toEqual(['version', 'mode', 'instructions', 'rulebookUri', 'rulebook', 'tools', 'failures', 'facts']);
+    expect(Object.keys(payload)).toEqual(['version', 'release', 'mode', 'instructions', 'rulebookUri', 'rulebook', 'addressLine', 'tools', 'failures', 'facts']);
+    expect(payload.version).toBe('1.0.0');
+    expect(payload.release).toBe('G - 1.0');
+    // The page puts its own address into this line. The rulebook at /llms.txt has the same line.
+    expect(payload.addressLine.replace('{address}', 'https://scrapy.example/api/mcp')).toBe(rulebook({ address: 'https://scrapy.example/api/mcp' }).split('\n')[4]);
+    expect(payload.facts.access).toBe('open');
     expect(payload.instructions).toBe(SERVER_INSTRUCTIONS);
     expect(payload.rulebook).toBe(rulebook());
     expect(payload.rulebookUri).toBe('scrapy://rulebook');

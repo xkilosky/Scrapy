@@ -43,7 +43,9 @@ h2 {
   margin: 0 0 4px;
 }
 
-h3 {
+/* "h2.label": a small heading that looks like an h3, where an h3 would skip a level. */
+h3,
+h2.label {
   font-size: 14px;
   margin: 22px 0 8px;
   text-transform: uppercase;
@@ -190,6 +192,7 @@ label {
 }
 
 input[type='text'],
+input[type='password'],
 input[type='number'],
 select {
   width: 100%;
@@ -288,6 +291,12 @@ pre {
   margin-top: 12px;
 }
 
+/* A link inside a message keeps the colour of the message: it stays readable on the tinted ground. */
+.error a {
+  color: inherit;
+  font-weight: 600;
+}
+
 footer {
   color: var(--soft);
   font-size: 13.5px;
@@ -318,6 +327,8 @@ a {
   font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.01em;
+  color: var(--ink);
+  text-decoration: none;
 }
 
 .bar-end {
@@ -434,6 +445,10 @@ button.icon {
 }
 
 .drawer-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
   margin-top: auto;
   padding: 14px 20px 18px;
   font-size: 13px;
@@ -1469,5 +1484,315 @@ pre.rulebook {
 
   table.params .under::before {
     content: ', ';
+  }
+}
+
+/* --- Release G - 1.0: the home page, the login page, the docs for everybody ---- */
+
+a.button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+a.button.primary:hover {
+  filter: brightness(1.08);
+}
+
+a.button.small {
+  padding: 6px 14px;
+  font-size: 14.5px;
+}
+
+a.button.big {
+  padding: 12px 22px;
+  font-size: 17px;
+  border-radius: 10px;
+}
+
+/* A button that does not ask for attention: "Log out" at the bottom of the menu. */
+button.quiet {
+  padding: 6px 12px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--soft);
+}
+
+/* A button inside a sentence. */
+button.inline {
+  padding: 2px 10px;
+  font-size: 13.5px;
+}
+
+button.wide {
+  width: 100%;
+  margin-top: 16px;
+  padding: 11px 16px;
+}
+
+/* Links in the top bar: on the home page, and the two pages of the docs. */
+.bar-links,
+.bar-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px 14px;
+}
+
+.bar-links a:not(.button) {
+  color: var(--ink);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.bar-links a:not(.button):hover {
+  text-decoration: underline;
+}
+
+.bar-tabs {
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.bar-tabs a {
+  padding: 6px 12px;
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.bar-tabs a:hover {
+  background: #eceff4;
+}
+
+.bar-tabs a[aria-current='page'] {
+  background: #e9eefd;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+main.landing {
+  max-width: 980px;
+  padding-top: 0;
+}
+
+.hero {
+  padding: 72px 0 44px;
+  text-align: center;
+}
+
+.eyebrow {
+  margin: 0 0 14px;
+  color: var(--accent);
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  font-size: clamp(38px, 7vw, 60px);
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+
+.hero-lead {
+  max-width: 640px;
+  margin: 20px auto 0;
+  color: var(--soft);
+  font-size: 18.5px;
+}
+
+.cta {
+  justify-content: center;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.hero-note {
+  max-width: 600px;
+  margin: 26px auto 0;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--soft);
+  font-size: 14.5px;
+}
+
+.hero-note strong {
+  color: var(--ink);
+}
+
+.hero-note code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(20, 23, 31, 0.07);
+  overflow-wrap: anywhere;
+}
+
+.section-title {
+  margin: 44px 0 14px;
+  font-size: 22px;
+  letter-spacing: -0.015em;
+}
+
+.tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.tools .card {
+  margin-bottom: 14px;
+}
+
+.tools .card p {
+  margin: 8px 0 0;
+}
+
+/* On the home page the name of a tool is a small label above its title. */
+.tools .tool-name {
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.tools h3.tool-title {
+  margin: 2px 0 0;
+  color: var(--ink);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.landing .three {
+  margin-top: 0;
+}
+
+.landing .three > div {
+  background: var(--card);
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.steps > li {
+  position: relative;
+  padding: 16px 16px 16px 54px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  font-size: 15px;
+  counter-increment: step;
+}
+
+.steps > li::before {
+  content: counter(step);
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #e9eefd;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 26px;
+  text-align: center;
+}
+
+.site-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin-top: 56px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.site-foot span {
+  margin-right: auto;
+}
+
+/* The login page: one card in the middle. */
+main.login {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 440px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-top: 40px;
+  padding-bottom: 40px;
+}
+
+.login > .brand {
+  align-self: center;
+  margin-bottom: 18px;
+  font-size: 24px;
+}
+
+.login .card {
+  padding: 26px 26px 28px;
+}
+
+.login h1 {
+  font-size: 24px;
+}
+
+.login .lead {
+  margin: 6px 0 14px;
+}
+
+.login-foot {
+  margin: 0;
+  text-align: center;
+}
+
+/* Empty until there is something to say. */
+#login-error:empty {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .tools,
+  .steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hero {
+    padding: 44px 0 30px;
+  }
+
+  .hero-lead {
+    font-size: 17px;
+  }
+
+  .cta .button {
+    flex: 1 1 100%;
+    text-align: center;
+  }
+
+  /* The two pages of the docs stay on one line next to the name. */
+  .bar-tabs {
+    margin-left: 0;
+  }
+
+  .bar-tabs a {
+    padding: 6px 9px;
+    font-size: 14px;
   }
 }

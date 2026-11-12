@@ -1,9 +1,9 @@
 {
   "name": "scrapy",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Web tools for AI agents over MCP: search, fetch, extract, crawl. Free, no keys.",
+  "description": "Web tools for AI agents over MCP: search the web and read pages. Free to run, personal with one password.",
   "engines": {
     "node": "22.x"
   },

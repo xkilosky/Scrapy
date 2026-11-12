@@ -4,7 +4,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Scrapy',
-  description: 'Web tools for AI agents: search, read, extract, crawl. Free, no keys.',
+  description: 'Web tools for AI agents, over MCP: search the web and read pages. Free to run.',
   robots: { index: false, follow: false },
 };
 

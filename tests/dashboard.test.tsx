@@ -1,18 +1,21 @@
 // @vitest-environment jsdom
 /**
  * The dashboard and its menu drawer, in a browser-like environment.
- * The three addresses the page calls (/api/status, /api/check, /api/try) are stand-ins.
+ * The addresses the page calls (/api/status, /api/check, /api/try, /api/logout) are stand-ins.
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import CheckPage from '@/app/page';
+import Console from '@/app/ui/Console';
 import { Drawer } from '@/app/ui/Drawer';
 import { MENU, viewFromHash } from '@/app/ui/menu';
 
 const STATUS = {
   name: 'scrapy',
-  version: '0.1.0',
+  version: '1.0.0',
+  release: 'G - 1.0',
+  access: 'open',
+  allowed: true,
   open: true,
   mode: 'safe',
   tools: [
@@ -26,7 +29,7 @@ const STATUS = {
 
 const REPORT = {
   at: '2026-11-11T20:00:00.000Z',
-  version: '0.1.0',
+  version: '1.0.0',
   mode: 'safe',
   region: 'iad1',
   helpers: [
@@ -109,7 +112,7 @@ describe('the menu list', () => {
 
 describe('the dashboard', () => {
   it('starts on "Run checks", with the menu closed and out of reach', async () => {
-    render(<CheckPage />);
+    render(<Console />);
     await title('Run checks');
     expect(screen.getByRole('button', { name: 'Run checks' })).toBeTruthy();
     expect(menuButton().getAttribute('aria-expanded')).toBe('false');
@@ -126,7 +129,7 @@ describe('the dashboard', () => {
 
   it('opens the drawer with the Dashboard section and its three entries', async () => {
     const user = userEvent.setup();
-    render(<CheckPage />);
+    render(<Console />);
     const menu = await openMenu(user);
 
     expect(menuButton().getAttribute('aria-expanded')).toBe('true');
@@ -141,12 +144,15 @@ describe('the dashboard', () => {
     expect(document.activeElement).toBe(within(menu).getByRole('button', { name: 'Close menu' }));
     expect(document.body.style.overflow).toBe('hidden');
     expect(document.querySelector('main')?.hasAttribute('inert')).toBe(true);
-    expect(await within(menu).findByText('Scrapy version 0.1.0')).toBeTruthy();
+    // The release, by the name people know it by.
+    expect(await within(menu).findByText('Scrapy G - 1.0')).toBeTruthy();
+    // No password here, so nothing to log out of.
+    expect(within(menu).queryByRole('button', { name: 'Log out' })).toBeNull();
   });
 
   it('shows the chosen part, closes the drawer, and gives the keyboard back to the menu button', async () => {
     const user = userEvent.setup();
-    render(<CheckPage />);
+    render(<Console />);
     const menu = await openMenu(user);
     await user.click(within(menu).getByRole('link', { name: 'Try a tool' }));
 
@@ -175,7 +181,7 @@ describe('the dashboard', () => {
 
   it('closes with the Escape key, with its close button, and with a click outside', async () => {
     const user = userEvent.setup();
-    render(<CheckPage />);
+    render(<Console />);
 
     await openMenu(user);
     await user.keyboard('{Escape}');
@@ -199,7 +205,7 @@ describe('the dashboard', () => {
 
   it('gives the keyboard back to the menu button even in a browser where a click does not focus a button', async () => {
     const user = userEvent.setup();
-    render(<CheckPage />);
+    render(<Console />);
     // A bare click: unlike a real press in most browsers, it leaves the keyboard where it was.
     fireEvent.click(menuButton());
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close menu' }));
@@ -210,7 +216,7 @@ describe('the dashboard', () => {
 
   it('keeps the Tab key inside the open drawer', async () => {
     const user = userEvent.setup();
-    render(<CheckPage />);
+    render(<Console />);
     const menu = await openMenu(user);
     const close = within(menu).getByRole('button', { name: 'Close menu' });
     // The last thing in the drawer: the last entry of its last section.
@@ -228,7 +234,7 @@ describe('the dashboard', () => {
 
   it('opens the part named in the page address, and follows it when it changes', async () => {
     window.history.replaceState(null, '', '/#address');
-    render(<CheckPage />);
+    render(<Console />);
     await title('The address for your agent');
     // Arriving on a part is not a change of part: the page is not moved.
     expect(scrollTo).not.toHaveBeenCalled();
@@ -244,7 +250,7 @@ describe('the dashboard', () => {
 
   it('only closes the menu when the part that is showing is chosen again', async () => {
     const user = userEvent.setup();
-    render(<CheckPage />);
+    render(<Console />);
     await user.click(within(await openMenu(user)).getByRole('link', { name: 'Run checks' }));
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(document.activeElement).toBe(menuButton());
@@ -256,7 +262,7 @@ describe('the dashboard', () => {
 
   it('keeps what was checked while another part is showing', async () => {
     const user = userEvent.setup();
-    render(<CheckPage />);
+    render(<Console />);
     await user.click(screen.getByRole('button', { name: 'Run checks' }));
     expect(await screen.findByText('Jina Reader')).toBeTruthy();
     expect(screen.getByText('loaded by Firecrawl')).toBeTruthy();
@@ -287,7 +293,7 @@ describe('the dashboard', () => {
       },
     });
     const user = userEvent.setup();
-    render(<CheckPage />);
+    render(<Console />);
     await user.click(screen.getByRole('button', { name: 'Run checks' }));
     expect(await screen.findByText(/None of the addresses Scrapy contacted answered\. This copy of Scrapy seems to have no internet access/)).toBeTruthy();
   });
@@ -295,22 +301,22 @@ describe('the dashboard', () => {
   it('does not say that when some addresses answer, or when everything works', async () => {
     const user = userEvent.setup();
     standIns({ report: { ...REPORT, contacts: [NO_ANSWER, ...REPORT.contacts] } });
-    render(<CheckPage />);
+    render(<Console />);
     await user.click(screen.getByRole('button', { name: 'Run checks' }));
     await screen.findByText('Jina Reader');
     expect(screen.queryByText(/seems to have no internet access/)).toBeNull();
     cleanup();
 
     standIns();
-    render(<CheckPage />);
+    render(<Console />);
     await user.click(screen.getByRole('button', { name: 'Run checks' }));
     await screen.findByText('Jina Reader');
     expect(screen.queryByText(/seems to have no internet access/)).toBeNull();
   });
 
   it('shows no menu at an address where Scrapy is closed', async () => {
-    standIns({ status: { name: 'scrapy', version: '0.1.0', open: false, message: 'Scrapy is closed at this address. Its owner has not opened it yet.' } });
-    render(<CheckPage />);
+    standIns({ status: { name: 'scrapy', version: '1.0.0', release: 'G - 1.0', access: 'closed', open: false, allowed: false, message: 'Scrapy is closed at this address. Its owner has not opened it yet.' } });
+    render(<Console />);
     expect(await screen.findByRole('heading', { name: 'This address is closed' })).toBeTruthy();
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Open menu' })).toBeNull());
     expect(screen.queryByRole('button', { name: 'Run checks' })).toBeNull();

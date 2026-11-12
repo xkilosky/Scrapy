@@ -12,7 +12,7 @@
  * The page asks every few seconds, so "nothing changed" is the common answer
  * and is kept as cheap as possible: one small read of the shared memory.
  */
-import { closedResponse, isOpen } from '@/lib/access';
+import { refusal } from '@/lib/access';
 import { LOGS, logsOn, logsSetting, onVercel } from '@/lib/config';
 import { getLogBook, isLogId } from '@/lib/logs';
 import { sharedIsReal } from '@/lib/store';
@@ -25,9 +25,10 @@ function answer(body: unknown, status = 200): Response {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  if (!isOpen()) return closedResponse();
+  const turnedAway = refusal(request);
+  if (turnedAway) return turnedAway;
   if (!logsOn()) {
-    // "public": off because this is a public address. "setting": switched off with SCRAPY_LOGS=off.
+    // "public": off because this is a public address that anybody may use. "setting": switched off with SCRAPY_LOGS=off.
     return answer({ on: false, why: logsSetting() === 'off' ? 'setting' : 'public' });
   }
   const book = getLogBook();

@@ -16,7 +16,8 @@
  * Nothing here is written twice. Parameters come from the tools' schemas,
  * numbers from lib/config.ts, and the list of failures from lib/errors.ts.
  */
-import { getMode, limits, LOGS, logsOn, onVercel, PAGE, pageOrder, REST, SEARCH, searchOrder, switchedOff, VERSION, type Mode } from './config';
+import { access, type Access } from './access';
+import { getMode, limits, LOGS, logsOn, onVercel, PAGE, pageOrder, RELEASE, REST, SEARCH, searchOrder, switchedOff, VERSION, type Mode } from './config';
 import { FAILURES, type Reason } from './errors';
 import { PAGE_HELPERS, SEARCH_ENGINES } from './providers';
 import { JUNK_SITES } from './search/junk-sites';
@@ -47,6 +48,8 @@ export interface FailureDoc {
 
 /** The numbers and settings the docs for people quote. All of them are read from the running Scrapy. */
 export interface Facts {
+  /** Who may use this Scrapy: its owner alone (personal), everybody who gets to it (open), or nobody for now (closed). */
+  access: Access;
   limits: { perMinute: number; perDay: number };
   search: {
     defaultResults: number;
@@ -81,12 +84,16 @@ export interface Facts {
 
 export interface DocsPayload {
   version: string;
+  /** The name of the release, as people see it. */
+  release: string;
   mode: Mode;
   /** What every agent is told when it connects. */
   instructions: string;
   rulebookUri: string;
   /** The whole rulebook as text. */
   rulebook: string;
+  /** The line that says where Scrapy is. The page puts its own address where this says "{address}". */
+  addressLine: string;
   tools: ToolDoc[];
   failures: FailureDoc[];
   facts: Facts;
@@ -134,6 +141,7 @@ export function facts(): Facts {
   const off = switchedOff();
   const mode = getMode();
   return {
+    access: access(),
     limits: { perMinute: cfg.visitorPerMinute, perDay: cfg.dailyCalls },
     search: {
       defaultResults: SEARCH.defaultCount,
@@ -171,6 +179,13 @@ export function facts(): Facts {
 const n = (value: number): string => value.toLocaleString('en-US');
 const asCode = (items: string[]): string => items.map((item) => `\`${item}\``).join(' or ');
 
+/** The line of the rulebook that says where Scrapy is, and what a caller needs there. */
+export function addressLine(address: string, state: Access = access()): string {
+  if (state === 'personal') return `MCP address: ${address} (Streamable HTTP). This Scrapy is personal: every request must carry its owner's key, in the header "Authorization: Bearer <key>".`;
+  if (state === 'closed') return `MCP address: ${address} (Streamable HTTP). This Scrapy is closed for now: it answers no calls.`;
+  return `MCP address: ${address} (Streamable HTTP, no key needed).`;
+}
+
 /**
  * The rulebook for AI agents, as Markdown.
  *
@@ -190,7 +205,7 @@ export function rulebook(options: { address?: string } = {}): string {
     'Scrapy gives you the web through MCP tools: you can search it, and you can read pages. This rulebook says exactly how to call each tool. Follow it. Do not guess parameter names or values.',
     '',
   );
-  if (options.address) say(`MCP address: ${options.address} (Streamable HTTP, no key needed).`, '');
+  if (options.address) say(addressLine(options.address), '');
 
   say(
     '## Which tool to use',
@@ -255,10 +270,12 @@ export function rulebook(options: { address?: string } = {}): string {
 export function docsPayload(): DocsPayload {
   return {
     version: VERSION,
+    release: RELEASE,
     mode: getMode(),
     instructions: SERVER_INSTRUCTIONS,
     rulebookUri: RULEBOOK_URI,
     rulebook: rulebook(),
+    addressLine: addressLine('{address}'),
     tools: toolDocs(),
     failures: failureDocs(),
     facts: facts(),

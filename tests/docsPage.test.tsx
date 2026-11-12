@@ -10,14 +10,17 @@
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import CheckPage from '@/app/page';
+import Console from '@/app/ui/Console';
 import { CLIENTS, connectSnippets, handCheck } from '@/app/ui/McpDoc';
 import { MENU, isOtherName, viewFromHash } from '@/app/ui/menu';
 import { docsPayload, type DocsPayload } from '@/lib/docs';
 
 const STATUS = {
   name: 'scrapy',
-  version: '0.1.0',
+  version: '1.0.0',
+  release: 'G - 1.0',
+  access: 'open',
+  allowed: true,
   open: true,
   mode: 'safe',
   tools: [
@@ -82,7 +85,7 @@ function user(): ReturnType<typeof userEvent.setup> {
 
 async function open(hash: string, heading: string): Promise<void> {
   window.history.replaceState(null, '', `/${hash}`);
-  render(<CheckPage />);
+  render(<Console />);
   await screen.findByRole('heading', { level: 1, name: heading });
 }
 
@@ -156,7 +159,7 @@ describe('the menu', () => {
 
   it('opens the two pages from the drawer, and reads the docs from Scrapy once', async () => {
     const u = user();
-    render(<CheckPage />);
+    render(<Console />);
     await screen.findByRole('heading', { level: 1, name: 'Run checks' });
     // Nothing is read before a Docs page is opened.
     expect(docsCalls()).toBe(0);
@@ -256,7 +259,7 @@ describe('The MCP doc', () => {
 
     // No secret is mentioned where none is needed.
     expect(document.body.textContent).not.toContain(SECRET);
-    expect(codeOf('A check by hand')).toBe(handCheck(ADDRESS, false));
+    expect(codeOf('A check by hand')).toBe(handCheck(ADDRESS));
   });
 
   it('lets the arrow keys move between the kinds of app, and the Tab key reach only the chosen one', async () => {
@@ -457,7 +460,7 @@ describe('The MCP doc', () => {
 describe('the examples for connecting', () => {
   it('are proper JSON where a file is meant, and carry the secret only when asked', () => {
     for (const withSecret of [false, true]) {
-      const all = connectSnippets('https://scrapy.example/api/mcp', withSecret);
+      const all = connectSnippets('https://scrapy.example/api/mcp', { secret: withSecret });
       expect(Object.keys(all)).toEqual(CLIENTS.map((c) => c.id));
       for (const id of ['cursor', 'vscode', 'local'] as const) {
         const parsed = JSON.parse(all[id].blocks[0]?.code ?? '') as { mcpServers: { scrapy: Record<string, unknown> } };
@@ -474,8 +477,8 @@ describe('the examples for connecting', () => {
   });
 
   it('follow what each app expects', () => {
-    const plain = connectSnippets('https://scrapy.example/api/mcp', false);
-    const secret = connectSnippets('https://scrapy.example/api/mcp', true);
+    const plain = connectSnippets('https://scrapy.example/api/mcp');
+    const secret = connectSnippets('https://scrapy.example/api/mcp', { secret: true });
     // Claude Code skips an entry with a url and no type. VS Code wants the type too.
     expect(JSON.parse(plain.vscode.blocks[0]?.code ?? '')).toEqual({ mcpServers: { scrapy: { type: 'http', url: 'https://scrapy.example/api/mcp' } } });
     expect(secret.claude.blocks[0]?.code).toBe(`claude mcp add --transport http scrapy https://scrapy.example/api/mcp \\\n  --header "${SECRET}: YOUR_SECRET"`);
@@ -489,7 +492,7 @@ describe('the examples for connecting', () => {
   });
 
   it('the check by hand asks for the list of tools, the way MCP wants to be asked', () => {
-    const text = handCheck('https://scrapy.example/api/mcp', false);
+    const text = handCheck('https://scrapy.example/api/mcp');
     expect(text).toContain('curl -s -X POST https://scrapy.example/api/mcp');
     expect(text).toContain("-H 'Accept: application/json, text/event-stream'");
     expect(text).toContain(`-d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'`);

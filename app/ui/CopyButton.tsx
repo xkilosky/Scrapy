@@ -26,13 +26,16 @@ export function CopyButton({ text, label = 'Copy', className }: { text: string; 
  *
  * Code keeps its lines and is scrolled sideways when it is too wide. With
  * "wrap", a long line is broken instead: for a single line of JSON.
+ *
+ * With "copy", the button copies that text instead of the one shown: for a
+ * block that shows YOUR_KEY and copies the real key, which stays off the screen.
  */
-export function CodeBlock({ code, label, caption, wrap = false }: { code: string; label: string; caption: string; wrap?: boolean }) {
+export function CodeBlock({ code, label, caption, wrap = false, copy }: { code: string; label: string; caption: string; wrap?: boolean; copy?: string }) {
   return (
     <div className="codeblock">
       <div className="codeblock-bar">
         <span>{caption}</span>
-        <CopyButton text={code} className="codeblock-copy" />
+        <CopyButton text={copy ?? code} label={copy !== undefined && copy !== code ? 'Copy with your key' : 'Copy'} className="codeblock-copy" />
       </div>
       {/* A name and a place in the Tab order, so that a keyboard can scroll it. A name needs a role. */}
       <pre role="group" aria-label={label} tabIndex={0} className={wrap ? undefined : 'keep'}>

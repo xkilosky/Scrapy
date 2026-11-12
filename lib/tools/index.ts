@@ -1,5 +1,5 @@
 /**
- * The tools Scrapy offers, in one list. The MCP address and the check page both
+ * The tools Scrapy offers, in one list. The MCP address and the dashboard both
  * run tools through runTool, so they behave exactly the same.
  *
  * Everything an agent is told about a tool comes from this file: its
@@ -178,10 +178,10 @@ export interface ToolRun {
 }
 
 export interface RunOptions {
-  /** Keep the start of each helper's raw answer in the trace. For the check page. */
+  /** Keep the start of each helper's raw answer in the trace. For the dashboard. */
   debug?: boolean;
   limiter?: Limiter;
-  /** Who is asking: an agent over MCP (the default), or the "Try a tool" box of the check page. */
+  /** Who is asking: an agent over MCP (the default), or the "Try a tool" box of the dashboard. */
   from?: 'agent' | 'page';
   /** Where the call is written down for the live feed. Tests pass their own book. */
   logs?: LogBook;
@@ -319,7 +319,7 @@ export async function runTool(name: string, rawArgs: unknown, visitor: string, o
       run = { ok: false, text: 'Something went wrong inside Scrapy. Try again.', reason: 'failed', trace: trace.report() };
     }
   }
-  // The live feed of the check page. Every call that passed the limits is listed. A call that
+  // The live feed of the dashboard. Every call that passed the limits is listed. A call that
   // was turned away before that (the caller is over a limit, or asked for a tool that does not
   // exist) is listed once a minute for each caller: a caller stuck in a loop must not fill the log.
   const book = options.logs ?? getLogBook();

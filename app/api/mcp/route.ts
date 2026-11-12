@@ -2,7 +2,7 @@
  * The MCP address. An AI agent connects here and gets Scrapy's tools.
  */
 import { createMcpHandler } from 'mcp-handler';
-import { closedMcpResponse, isOpen } from '@/lib/access';
+import { mcpRefusal } from '@/lib/access';
 import { VERSION } from '@/lib/config';
 import { originOf, rulebook } from '@/lib/docs';
 import { visitorOf } from '@/lib/limits';
@@ -73,10 +73,12 @@ const handler = createMcpHandler(
   { serverInfo: { name: 'scrapy', version: VERSION }, instructions: SERVER_INSTRUCTIONS },
 );
 
-/** A closed Scrapy (see lib/access.ts) turns every agent away before any work is done. */
+/**
+ * A closed Scrapy turns every agent away before any work is done. A personal
+ * one does the same to an agent without its owner's key. See lib/access.ts.
+ */
 async function guarded(request: Request): Promise<Response> {
-  if (!isOpen()) return closedMcpResponse();
-  return handler(request);
+  return mcpRefusal(request) ?? handler(request);
 }
 
 export { guarded as GET, guarded as POST, guarded as DELETE };

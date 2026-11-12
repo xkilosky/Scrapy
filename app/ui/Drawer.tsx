@@ -8,7 +8,7 @@
  * inside it and the page behind does not scroll. When it closes, the keyboard
  * goes back to the button that opened it.
  */
-import { useEffect, useRef, type KeyboardEvent } from 'react';
+import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import type { MenuSection } from './menu';
 
 interface DrawerProps {
@@ -19,8 +19,8 @@ interface DrawerProps {
   sections: readonly MenuSection[];
   /** The id of the entry that is showing now. */
   current: string;
-  /** A small line at the bottom of the menu, for example the version. */
-  foot?: string;
+  /** The bottom of the menu: for example a "Log out" button and the version. */
+  foot?: ReactNode;
 }
 
 export function Drawer({ id, open, onClose, sections, current, foot }: DrawerProps) {

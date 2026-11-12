@@ -106,7 +106,7 @@ export function DocsAi({ docs, origin, failed, onRetry }: { docs: DocsPayload | 
   // Vercel's test addresses are behind Vercel's login. That goes for /llms.txt too.
   const guarded = docs.facts.where.vercel && docs.facts.where.env === 'preview';
   // The text at /llms.txt starts with Scrapy's address. This copy gets the same line.
-  const rulebook = docs.rulebook.replace('\n\n## Which tool to use', `\n\nMCP address: ${origin}/api/mcp (Streamable HTTP, no key needed).\n\n## Which tool to use`);
+  const rulebook = docs.rulebook.replace('\n\n## Which tool to use', `\n\n${docs.addressLine.replace('{address}', `${origin}/api/mcp`)}\n\n## Which tool to use`);
 
   return (
     <>

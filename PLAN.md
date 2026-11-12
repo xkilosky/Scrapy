@@ -2,6 +2,8 @@
 
 Status: stage 1 of 4 is built and checked on Vercel, in the safe position. One check is left, and it needs you: see the stage 1 report below. Written 2026-11-11.
 
+**Release G - 1.0 (2026-11-12).** Scrapy is personal now: you said "No users no accounts Only for myself personal". It has a home page, a login with one password of your own, a dashboard and docs. What that means, and what it needs from you, is under [Access](#access).
+
 Version 1 needed two outside accounts and their keys. You answered "We need totally Free no Key Scrapy" and "The best". This version needs no new account, no key and no payment.
 
 ## Stage 1 report (2026-11-11)
@@ -86,7 +88,7 @@ Scrapy is a set of web tools that an AI agent calls. Oryzen is the example. Peop
 - **Where it runs:** Vercel, on the free plan.
 - **How the agent connects:** MCP, the common plug-in standard for AI tools.
 - **What it has:** seven tools. Your five, plus two I had to add (see [The tools](#the-tools)).
-- **What it costs:** nothing. There is no account to create and no key to copy anywhere.
+- **What it costs:** nothing. There is no account to create and no key to buy or copy from another service. Since release G - 1.0 there is one secret, and it is your own: the password that makes Scrapy answer only to you.
 - **How that is possible:** free services that officially offer a door with no key do the searching, and can load the pages. Scrapy does the rest itself: cleaning, picking out text, images and colours, following links. If you choose, it also loads the pages itself.
 - **The catch:** those free doors are small and can be busy. Scrapy keeps several for each job, but a tool will sometimes answer "busy, try again".
 
@@ -120,8 +122,8 @@ Both get built. It is one setting, and you can change it at any time. A middle p
 | --- | --- | --- |
 | Where should page-fetching happen? | "Free best way", then totally free with no key | No accounts and no keys. Free no-key services load the pages, or Scrapy itself. That is the choice above. |
 | May Scrapy load pages itself? | Best results, best tool, free, fast, intelligent | Built both ways. Which one it starts in is the choice above. |
-| Should Scrapy have a password? | You are planning that and will tell me later | Left open. See [Access](#access). |
-| Who will use Scrapy? | Other people too, no money involved | Vercel's free plan is allowed. Each visitor gets a speed limit. |
+| Should Scrapy have a password? | First: you are planning that and will tell me later. On 2026-11-12: "ONLY make it personal" | Built in release G - 1.0: one password of your own. See [Access](#access). |
+| Who will use Scrapy? | First: other people too, no money involved. On 2026-11-12: "No users no accounts Only for myself personal" | Only you. No sign-up, no accounts, no database. Vercel's free plan is allowed. |
 | How will the agent call the tools? | MCP | One MCP address. |
 
 ## The tools
@@ -220,13 +222,32 @@ Tell me if you want any of these changed.
 
 ## Access
 
-You are planning whether Scrapy gets a password and will tell me later. Nothing in the build depends on it. It is one setting, and it needs no outside account either way.
+**Decided on 2026-11-12: Scrapy is personal.** Only you use it. There are no users and no accounts.
 
-Until you decide, Scrapy can only be used at its test addresses. Vercel shows those only to someone logged in to your Vercel account.
+"Only for myself" needs one thing that tells you apart from everybody else. In release G - 1.0 that is a password you choose yourself. It is not a key from another service, and it needs no outside account. It is one setting: `SCRAPY_PASSWORD`.
 
-A correction to the first version of this section: I wrote that Scrapy would get a public address only at the last stage. Vercel gives every project a public address from its very first deployment. So Scrapy now has a switch: at the public address it is closed, answers every call with one sentence and contacts nobody, until the setting `SCRAPY_OPEN` is turned on. I will not turn it on without asking you.
+| | Without a password | With your password |
+| --- | --- | --- |
+| The public address | Closed. Answers every call with one sentence and contacts nobody. | Yours: the dashboard after the login, the tools for your AI with your key. |
+| The test addresses | Open to whoever has your Vercel login. | Yours, in the same way. |
+| The home page and the docs | Anybody can read them. | Anybody can read them. They hold no secret. |
+| The live feed | Off on the public address. | On, and only you can read it. |
 
-One thing to weigh when you decide: with no password, anyone who finds the address can use Scrapy and use up the free doors.
+How it works:
+
+- **The login.** `/login` asks for the password. Your browser then stays logged in for 30 days. "Log out" is at the foot of the dashboard's menu.
+- **The key for your AI.** An AI cannot type a password. So Scrapy makes a long key from your password and shows it on the dashboard. Your AI sends it with every request. The key opens the tools and nothing else: it cannot read the live feed.
+- **A new password** logs every browser out and makes a new key. That is how to take a key back.
+- **Guessing is slowed down.** 5 wrong passwords from one internet address, and that address waits 15 minutes. 100 from everywhere, and the login pauses for an hour.
+- Nothing is stored anywhere. There is no database and no list of users, because there is one owner.
+
+This bends one sentence I wrote earlier, "no key to copy anywhere". Your AI now does copy a key: your own. I see no way to have "only for myself" on a public address without a secret of some kind.
+
+**The other way to get the same result** costs nothing either and needs no code: Vercel's own login in front of every address of the project (in Vercel: Settings, Deployment Protection, Vercel Authentication, "All Deployments"). Then nobody but you even sees the home page or the docs, and your AI gets in with a secret that Vercel makes ("Protection Bypass for Automation"). I built Scrapy's own password instead, so that the home page and the docs can be read without a login, as a release usually has it. Both can be on together. Vercel's "Password Protection" is a paid feature, so it is not an option here.
+
+**What is still yours to do:** choose the password and set it in Vercel. I do not set it for you: a password that passes through this chat is not a secret any more.
+
+A correction to the first version of this section: I wrote that Scrapy would get a public address only at the last stage. Vercel gives every project a public address from its very first deployment. So without a password Scrapy is closed at the public address, until the setting `SCRAPY_OPEN` is turned on. I will not turn it on without asking you, and with a password it is not needed.
 
 ## Not in the first version
 
@@ -242,18 +263,18 @@ One thing to weigh when you decide: with no password, anyone who finds the addre
 1. **Foundation, search and fetch.** The project skeleton, the MCP address, `search_web` and `fetch_url`. I create the Vercel project and link it to this repository. A check page shows which free helpers answer from Vercel and how fast, with a "Run checks" button and a box to try each tool.
 2. **Reference-site tools.** `extract_text`, `extract_images`, `extract_design`.
 3. **Crawling.** `deep_crawl` and `crawl_status`.
-4. **Going live.** Your access decision, a pull request, the merge into `main`, the public address, then connecting Oryzen.
+4. **Going live.** Your access decision (made on 2026-11-12: personal), a pull request, the merge into `main`, the public address, then connecting Oryzen.
 
 After each stage I report what was built and what the checks showed.
 
 ## What I need from you
 
-**Now:** one thing. Open https://scrapy-git-arena-4c60da5e-scrapy-flux-cf70.vercel.app and log in to Vercel if it asks. Press "Run checks", wait, press "Copy results as text", and paste the text to me. I cannot open that address myself: it needs your login.
+**Now:** one thing. Open https://scrapy-git-arena-4c60da5e-scrapy-flux-cf70.vercel.app/dashboard and log in to Vercel if it asks. (Since release G - 1.0 the checks are on the dashboard. Once a password is set, Scrapy asks for that too.) Press "Run checks", wait, press "Copy results as text", and paste the text to me. I cannot open that address myself: it needs your login.
 
 **Later.** I will say exactly when.
 
-1. Your access decision, before stage 4.
-2. Merge the pull request when you are happy with it.
+1. ~~Your access decision, before stage 4.~~ Made on 2026-11-12: personal. What is left: set `SCRAPY_PASSWORD` in Vercel (Settings, Environment Variables, for Production and Preview), at least 10 characters.
+2. Say when release G - 1.0 may go into `main`. That is what puts it on the public address.
 3. Tell me how Oryzen connects to MCP servers, or let me look at its code.
 
 ## How we will know it works

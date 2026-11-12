@@ -56,6 +56,8 @@ interface McpResponse {
 type Answer = { state: 'loading' } | { state: 'ready'; response: McpResponse } | { state: 'gone' } | { state: 'error' };
 
 interface FeedReply {
+  /** True when Scrapy is personal and this browser is not logged in (any more). */
+  login?: boolean;
   open?: boolean;
   on?: boolean;
   why?: 'public' | 'setting';
@@ -171,7 +173,7 @@ function Card({ entry, payloadOpen, answer, onPayload }: { entry: LogEntry; payl
   );
 }
 
-export function LogsView({ active }: { active: boolean }) {
+export function LogsView({ active, onLoggedOut }: { active: boolean; onLoggedOut?: () => void }) {
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [phase, setPhase] = useState<'loading' | 'live' | 'off' | 'closed'>('loading');
   const [offWhy, setOffWhy] = useState<'public' | 'setting'>('setting');
@@ -194,6 +196,9 @@ export function LogsView({ active }: { active: boolean }) {
   const feed = useRef<HTMLDivElement>(null);
   /** True while the feed is scrolled to its end. Then it follows new calls. */
   const following = useRef(true);
+  /** Kept here, so that a page that hands over a new function with every drawing does not start the asking over. */
+  const loggedOut = useRef(onLoggedOut);
+  loggedOut.current = onLoggedOut;
 
   const absorb = useCallback((list: LogEntry[]) => {
     let added = 0;
@@ -215,6 +220,12 @@ export function LogsView({ active }: { active: boolean }) {
     async (signal: AbortSignal): Promise<boolean> => {
       const res = await fetch(`/api/logs${rev.current ? `?rev=${encodeURIComponent(rev.current)}` : ''}`, { signal, cache: 'no-store' });
       const data = (await res.json()) as FeedReply;
+      if (data.login === true) {
+        // The login ended while the feed was open. The page says so. The feed stops asking.
+        setPhase('closed');
+        loggedOut.current?.();
+        return false;
+      }
       if (data.open === false) {
         setPhase('closed');
         return false;
@@ -326,7 +337,12 @@ export function LogsView({ active }: { active: boolean }) {
     setAnswers((all) => ({ ...all, [entry.id]: { state: 'loading' } }));
     fetch(`/api/logs?id=${encodeURIComponent(entry.id)}`, { cache: 'no-store' })
       .then((res) => res.json())
-      .then((data: { found?: boolean; response?: McpResponse }) => {
+      .then((data: { found?: boolean; response?: McpResponse; login?: boolean }) => {
+        if (data.login === true) {
+          loggedOut.current?.();
+          setAnswers((all) => ({ ...all, [entry.id]: { state: 'error' } }));
+          return;
+        }
         const response = data.response;
         setAnswers((all) => ({ ...all, [entry.id]: data.found && response ? { state: 'ready', response } : { state: 'gone' } }));
       })
@@ -359,8 +375,8 @@ export function LogsView({ active }: { active: boolean }) {
         <h2>The log is off at this address</h2>
         {offWhy === 'public' ? (
           <p style={{ marginBottom: 0 }}>
-            This is Scrapy&apos;s public address. The log holds what was asked and what was answered, and everybody who can open this page could read it. So Scrapy writes nothing down here. The log is on at the test address,
-            which needs your Vercel login.
+            This is Scrapy&apos;s public address, and it has no password. The log holds what was asked and what was answered, and everybody who can open this page could read it. So Scrapy writes nothing down here. With a
+            password (the setting <code>SCRAPY_PASSWORD</code>) Scrapy is personal: the log is then on, and only you can read it.
           </p>
         ) : (
           <p style={{ marginBottom: 0 }}>
