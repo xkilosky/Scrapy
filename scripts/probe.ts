@@ -15,7 +15,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { runChecks } from '../lib/check';
 import { createLogBook, newLogId, type LogEntry } from '../lib/logs';
-import { sharedLayer } from '../lib/store';
+import { sharedIsReal, sharedLayer } from '../lib/store';
 
 const PORT = 3999;
 const say = (line: string): void => console.log(`[probe] ${line}`);
@@ -108,7 +108,7 @@ async function sharedMemory(): Promise<void> {
     return;
   }
   // During a build the shared memory is reached over HTTP, and only when Vercel hands the build the address for it.
-  const handed = Boolean(process.env.RUNTIME_CACHE_ENDPOINT) && Boolean(process.env.RUNTIME_CACHE_HEADERS);
+  const handed = sharedIsReal();
   say(`memory: address for the build ${handed ? 'given' : 'NOT given: the answers below come from a stand-in inside this process, and prove nothing'} | environment=${process.env.VERCEL_ENV ?? 'unknown'} region=${process.env.VERCEL_REGION ?? 'unknown'}`);
 
   const run = Date.now().toString(36);

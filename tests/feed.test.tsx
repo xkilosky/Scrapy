@@ -46,7 +46,7 @@ const server = {
   answers: new Map<string, string>(),
   mode: 'on' as 'on' | 'public' | 'setting' | 'down' | 'closed',
   where: 'memory' as 'memory' | 'vercel',
-  shared: 'works' as 'works' | 'silent',
+  shared: 'works' as 'works' | 'silent' | 'missing' | 'none',
   asked: [] as string[],
   add(e: LogEntry, answer?: string): LogEntry {
     server.entries.push(e);
@@ -474,6 +474,18 @@ describe('on Vercel', () => {
     expect(screen.queryByText(/keeps them in its own memory/)).toBeNull();
     await pass(10_000);
     expect(logCalls().filter((url) => url.includes('probe=1'))).toHaveLength(1);
+  });
+
+  it('warns when Vercel has not handed the server its shared memory, or when it is switched off', async () => {
+    server.where = 'vercel';
+    server.shared = 'missing';
+    render(<LogsView active />);
+    expect(await screen.findByText(/Vercel has not handed this server its shared memory, so calls handled by other servers cannot be shown here\./)).toBeTruthy();
+    cleanup();
+
+    server.shared = 'none';
+    render(<LogsView active />);
+    expect(await screen.findByText(/The shared memory is switched off with SCRAPY_SHARED_CACHE=off\./)).toBeTruthy();
   });
 
   it('says nothing about the shared memory when it works', async () => {

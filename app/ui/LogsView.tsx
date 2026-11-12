@@ -183,7 +183,7 @@ export function LogsView({ active }: { active: boolean }) {
   const [unseen, setUnseen] = useState(0);
   const [kept, setKept] = useState({ keep: 100, hours: 24 });
   const [where, setWhere] = useState<'vercel' | 'memory' | null>(null);
-  const [shared, setShared] = useState<'works' | 'silent' | 'none' | null>(null);
+  const [shared, setShared] = useState<'works' | 'silent' | 'missing' | 'none' | null>(null);
 
   /** Every call the page has seen, by id. */
   const known = useRef(new Map<string, LogEntry>());
@@ -283,7 +283,7 @@ export function LogsView({ active }: { active: boolean }) {
     const controller = new AbortController();
     fetch('/api/logs?probe=1', { signal: controller.signal, cache: 'no-store' })
       .then((res) => res.json())
-      .then((data: { shared?: 'works' | 'silent' | 'none' }) => setShared(data.shared ?? null))
+      .then((data: { shared?: 'works' | 'silent' | 'missing' | 'none' }) => setShared(data.shared ?? null))
       .catch(() => undefined);
     return () => controller.abort();
   }, [where]);
@@ -448,10 +448,12 @@ export function LogsView({ active }: { active: boolean }) {
       </section>
 
       {trouble && <div className="error">Scrapy did not answer the last time the feed asked for news. It keeps trying every few seconds.</div>}
-      {shared === 'silent' && (
+      {/* On Vercel the call and the feed are handled by different servers. Without a working shared memory the feed stays empty, and must say why. */}
+      {where === 'vercel' && shared !== null && shared !== 'works' && (
         <div className="error">
-          Vercel&apos;s shared memory is not answering here, so calls cannot be shown. The log travels through that memory, and it stops for the rest of the month when its free allowance is used up. Scrapy&apos;s tools are not
-          affected.
+          {shared === 'silent' && "Vercel's shared memory is not answering here, so calls cannot be shown. The log travels through that memory, and Vercel pauses it for the rest of the month when its free allowance is used up."}
+          {shared === 'missing' && 'Vercel has not handed this server its shared memory, so calls handled by other servers cannot be shown here. The log travels through that memory.'}
+          {shared === 'none' && 'The shared memory is switched off with SCRAPY_SHARED_CACHE=off. On Vercel the log travels through it, so calls cannot be shown.'} Scrapy&apos;s tools are not affected.
         </div>
       )}
       <p className="soft term-foot">

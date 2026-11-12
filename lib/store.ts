@@ -57,8 +57,17 @@ export function createMemoryStore(now: () => number = Date.now): Store {
 
 interface SharedCache {
   get(key: string): Promise<unknown>;
-  set(key: string, value: unknown, options?: { ttl?: number }): Promise<void>;
+  set(key: string, value: unknown, options?: { ttl?: number; name?: string }): Promise<void>;
   delete(key: string): Promise<void>;
+}
+
+/**
+ * What Vercel's dashboard shows for a kept value: only its kind ("page",
+ * "search", "log"). Left alone, Vercel would be given the whole key as the
+ * name, and the key of a page holds its link.
+ */
+function kindOf(key: string): string {
+  return key.split(':', 1)[0] ?? '';
 }
 
 /**
@@ -95,13 +104,28 @@ export interface SharedLayer {
   delete(key: string): Promise<void>;
 }
 
+/**
+ * Has Vercel really handed this server its shared memory?
+ *
+ * Without it, Vercel's functions package quietly answers from a stand-in
+ * inside the process. That stand-in takes a value and gives it back, so it
+ * looks fine from the inside, but it is shared with nobody. Vercel hands the
+ * shared memory to a running server with each request, and to a build through
+ * two environment variables.
+ */
+export function sharedIsReal(): boolean {
+  const holder = (globalThis as unknown as Record<symbol, { get?: () => { cache?: unknown } | undefined } | undefined>)[Symbol.for('@vercel/request-context')];
+  if (holder?.get?.()?.cache) return true;
+  return Boolean(process.env.RUNTIME_CACHE_ENDPOINT) && Boolean(process.env.RUNTIME_CACHE_HEADERS);
+}
+
 /** null where there is no shared layer: on a developer's machine, or with SCRAPY_SHARED_CACHE=off. */
 export async function sharedLayer(): Promise<SharedLayer | null> {
   const cache = await shared();
   if (!cache) return null;
   return {
     get: async (key) => (await cache.get(key)) ?? null,
-    set: (key, value, ttlSec) => cache.set(key, value, { ttl: ttlSec }),
+    set: (key, value, ttlSec) => cache.set(key, value, { ttl: ttlSec, name: kindOf(key) }),
     delete: (key) => cache.delete(key),
   };
 }
@@ -146,7 +170,7 @@ export function createLayeredStore(): Store {
       try {
         const envelope: SharedEnvelope = { v: value, e: Date.now() + ttlSec * 1000 };
         if (JSON.stringify(envelope).length > MAX_SHARED_CHARS) return;
-        await cache.set(key, envelope, { ttl: ttlSec });
+        await cache.set(key, envelope, { ttl: ttlSec, name: kindOf(key) });
       } catch {
         sharedFailed();
       }

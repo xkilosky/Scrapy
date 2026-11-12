@@ -58,6 +58,9 @@ The code also has 149 automated tests. They replace the network with stand-ins, 
 
 - **A menu drawer on the check page.** The menu button at the top left opens a drawer with sections. The first section is "Dashboard", with three parts: Run checks, The address for your agent, Try a tool. One part shows at a time.
 - **A second section, "Logs", with the live feed.** Every tool call is listed the moment it is answered: time, tool, question or link, method, duration, result. A line unfolds into a card, and the card's last row into the JSON response the agent got. This changes one thing this plan said before: Scrapy now writes down what was asked and what was answered, for up to 24 hours, the last 100 calls. It does so only where its page is private (your machine, the test address). On the public address the log is off. Seeing an agent's calls on the public address needs the access decision from stage 4.
+  - Checked against Vercel's real shared memory, from the machine that builds Scrapy (2026-11-12 UTC, test environment): a value written was there at the next read 8 times out of 8, within 6 to 10 ms; a write took 27 to 66 ms; the log went from two servers to a third, complete with the answer of a call.
+  - Checked with two separate copies of Scrapy that share nothing but a stand-in for that memory: a call answered by one showed up in the feed of the other about 2.4 s after the call started.
+  - Not seen yet: the same inside the running app on Vercel. Its test address needs your login, so I cannot open it. If Vercel does not hand the running app its shared memory, the feed says so in red.
 
 **Numbers I chose**
 

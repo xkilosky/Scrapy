@@ -7,7 +7,7 @@ import { GET as logs } from '@/app/api/logs/route';
 import { logsOn } from '@/lib/config';
 import { createLogBook, entryOf, getLogBook, isLogId, logCall, methodOf, newLogId, resetLogBook, type LogEntry } from '@/lib/logs';
 import type { SharedLayer } from '@/lib/store';
-import { sharedKeyName } from '@/lib/store';
+import { sharedIsReal, sharedKeyName } from '@/lib/store';
 import type { TraceReport } from '@/lib/trace';
 
 interface FakeShared extends SharedLayer {
@@ -509,6 +509,65 @@ describe('the address behind the feed', () => {
 
   it('reports whether a shared memory carries the log', async () => {
     expect((await get('?probe=1')).body).toEqual({ on: true, shared: 'none' });
+  });
+
+  it('does not take the stand-in inside the process for the shared memory', async () => {
+    // As if on Vercel, but without Vercel handing over its shared memory.
+    process.env.VERCEL = '1';
+    try {
+      expect(sharedIsReal()).toBe(false);
+      expect((await get('?probe=1')).body).toEqual({ on: true, shared: 'missing' });
+      // Switched off on purpose is said as such.
+      process.env.SCRAPY_SHARED_CACHE = 'off';
+      expect((await get('?probe=1')).body).toEqual({ on: true, shared: 'none' });
+      delete process.env.SCRAPY_SHARED_CACHE;
+
+      // Handed over the way a running server gets it: with the request.
+      const key = Symbol.for('@vercel/request-context');
+      const holder = globalThis as unknown as Record<symbol, unknown>;
+      const kept = new Map<string, unknown>();
+      const told: { name?: string; ttl?: number }[] = [];
+      holder[key] = {
+        get: () => ({
+          cache: {
+            get: async (k: string) => kept.get(k) ?? null,
+            set: async (k: string, v: unknown, options: { name?: string; ttl?: number }) => {
+              told.push(options);
+              kept.set(k, JSON.parse(JSON.stringify(v)));
+            },
+            delete: async (k: string) => void kept.delete(k),
+          },
+        }),
+      };
+      try {
+        expect(sharedIsReal()).toBe(true);
+        expect((await get('?probe=1')).body).toEqual({ on: true, shared: 'works' });
+        // What was written went to the memory Vercel handed over, under a name made by Scrapy.
+        expect([...kept.keys()].every((k) => /^scrapy\$[0-9a-f]{40}$/.test(k))).toBe(true);
+        expect(kept.size).toBe(1);
+
+        // A whole call through it: Vercel is told the kind of each value and how long to keep it,
+        // never the key itself, which would give away what was asked.
+        told.length = 0;
+        logCall(call('a private question', Date.now()));
+        await (await getLogBook().read()).entries;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(told.length).toBe(3);
+        expect(told.every((options) => options.name === 'log' && options.ttl === 86_400)).toBe(true);
+        expect(JSON.stringify([...kept.entries()])).not.toContain('a private question');
+      } finally {
+        delete holder[key];
+      }
+      // Handed over the way a build gets it: through the environment.
+      process.env.RUNTIME_CACHE_ENDPOINT = 'https://cache.example/';
+      process.env.RUNTIME_CACHE_HEADERS = '{}';
+      expect(sharedIsReal()).toBe(true);
+    } finally {
+      delete process.env.VERCEL;
+      delete process.env.RUNTIME_CACHE_ENDPOINT;
+      delete process.env.RUNTIME_CACHE_HEADERS;
+      delete process.env.SCRAPY_SHARED_CACHE;
+    }
   });
 
   it('shows nothing on the public address, and nothing when switched off', async () => {
