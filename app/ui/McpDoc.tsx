@@ -241,7 +241,9 @@ function Connect({ address, facts, client, setClient, ownerKey, dash }: ConnectP
       <h2 id="doc-connect-title">1. Connect your AI</h2>
       <p>
         Scrapy has one address. Your AI connects to it with MCP and gets the tools from it.{' '}
-        {personal ? 'This Scrapy is personal: it answers only to its owner. So your AI also sends the owner\u2019s key.' : 'Scrapy asks for no key and no account.'}
+        {personal
+          ? 'This Scrapy is personal: it answers only to its owner. So your AI also sends the owner\u2019s key. Fresh keys, one for each AI, are made and turned off on the dashboard.'
+          : 'Scrapy asks for no key and no account.'}
       </p>
       <div className="row">
         <code className="address">{address}</code>

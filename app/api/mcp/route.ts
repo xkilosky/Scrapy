@@ -78,7 +78,7 @@ const handler = createMcpHandler(
  * one does the same to an agent without its owner's key. See lib/access.ts.
  */
 async function guarded(request: Request): Promise<Response> {
-  return mcpRefusal(request) ?? handler(request);
+  return (await mcpRefusal(request)) ?? handler(request);
 }
 
 export { guarded as GET, guarded as POST, guarded as DELETE };

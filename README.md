@@ -116,7 +116,7 @@ So a Scrapy that was just put on Vercel is closed until its owner decides. Nobod
 **Making it personal.** Set `SCRAPY_PASSWORD` to a password of at least 10 characters, and deploy again. On Vercel: the project's Settings, Environment Variables. Choose one that cannot be guessed: several unrelated words, or a long random text. There is one owner, so there is no user name, no sign-up and no database. Two things are made from the password, and neither gives it away:
 
 - **The login of a browser.** `/login` asks for the password. After the right one, the browser holds a pass (a cookie) for 30 days. The pass opens the dashboard and what is behind it: the checks, "Try a tool" and the live feed. "Log out" is at the foot of the dashboard's menu.
-- **The key of an AI.** A long text that starts with `scrapy_`, shown on the dashboard. The AI sends it with every request. The key opens the MCP address and nothing else: a key that got out cannot read the log.
+- **The keys of AI apps.** A long text that starts with `scrapy_`, shown on the dashboard. The AI sends a key with every request. A key opens the MCP address and nothing else: a key that got out cannot read the log. The first key is made from the password itself. On the dashboard ("The address", "Fresh keys") you can make more keys, one for each AI: a fresh key is shown once, works on every copy of Scrapy at once, and stays live until you turn it off there. A new password ends every key, and logs every browser out.
 
 Good to know:
 
@@ -167,7 +167,7 @@ This page is for the owner, not for agents.
 The menu button at the top left opens a drawer with sections. The first section, **Dashboard**, has three parts:
 
 1. **Run checks** asks every helper one small thing, times the tools against their targets, switches the first ways off to prove the fallback works, and lists every address that was contacted.
-2. **The address for your agent** shows the MCP address to copy, the key of a personal Scrapy (hidden until you ask for it), the tools that are ready, and the limits.
+2. **The address for your agent** shows the MCP address to copy, the first key of a personal Scrapy (hidden until you ask for it), the fresh keys you make for each AI (made there, listed there, turned off there), the tools that are ready, and the limits.
 3. **Try a tool** runs `search_web` or `fetch_url` exactly as an agent would and shows the answer the agent gets.
 
 The second section, **Logs**, has one part: the **Live feed** of tool calls. The third section, **Docs**, has two: **MCP doc** and **For the AI**, the same two pages as at `/docs`. Both sections are described below. At the foot of the menu are "Log out" and the release.

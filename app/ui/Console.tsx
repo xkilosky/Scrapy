@@ -23,6 +23,7 @@
  */
 import { useEffect, useState } from 'react';
 import type { DocsPayload } from '@/lib/docs';
+import type { MintEntry } from '@/lib/owner';
 import { CopyButton } from './CopyButton';
 import { DocsAi } from './DocsAi';
 import { McpDoc, type ClientId } from './McpDoc';
@@ -176,6 +177,15 @@ export default function Console() {
   /** True once Scrapy has answered "log in first": the login ended while this page was open. */
   const [loggedOut, setLoggedOut] = useState(false);
   const [keyShown, setKeyShown] = useState(false);
+  /** The book of keys, read from Scrapy when "The address" is opened. null until then. */
+  const [book, setBook] = useState<{ first: { print: string; off: boolean } | null; mints: MintEntry[] } | null>(null);
+  const [keyNote, setKeyNote] = useState('');
+  const [keyBusy, setKeyBusy] = useState(false);
+  const [keyError, setKeyError] = useState('');
+  /** The fresh key, kept only in this tab's memory and shown once: it is never sent back or written down. */
+  const [freshKey, setFreshKey] = useState<{ key: string; print: string } | null>(null);
+  /** The seal-print whose "Turn off" is being confirmed, so one click never kills a key. */
+  const [confirmOff, setConfirmOff] = useState<string | null>(null);
 
   const [checking, setChecking] = useState(false);
   const [report, setReport] = useState<CheckReport | null>(null);
@@ -252,6 +262,7 @@ export default function Console() {
   const closed = status !== null && !status.open;
   const personal = status?.access === 'personal';
   const mustLogIn = loggedOut || (personal && status?.allowed === false);
+  const key = personal ? (status?.key ?? null) : null;
 
   async function logOut() {
     try {
@@ -260,6 +271,86 @@ export default function Console() {
       // Without an answer the pass may still be there. The home page shows which it is.
     }
     go('/');
+  }
+
+  // The book of keys is read from Scrapy when the owner opens "The address". A personal Scrapy only.
+  useEffect(() => {
+    if (view !== 'address' || !key) return undefined;
+    let stale = false;
+    fetch('/api/keys', { cache: 'no-store' })
+      .then((r) => {
+        if (r.status === 401) {
+          setLoggedOut(true);
+          return null;
+        }
+        return r.ok ? r.json() : null;
+      })
+      .then((d: { first: { print: string; off: boolean } | null; mints: MintEntry[] } | null) => {
+        if (!stale && d) setBook({ first: d.first, mints: d.mints });
+      })
+      .catch(() => undefined);
+    return () => {
+      stale = true;
+    };
+  }, [view, key]);
+
+  async function readBook(): Promise<void> {
+    try {
+      const r = await fetch('/api/keys', { cache: 'no-store' });
+      if (r.status === 401) {
+        setLoggedOut(true);
+        return;
+      }
+      if (r.ok) {
+        const d = (await r.json()) as { first: { print: string; off: boolean } | null; mints: MintEntry[] };
+        setBook({ first: d.first, mints: d.mints });
+      }
+    } catch {
+      // The list on screen may be one step behind. It rights itself the next time.
+    }
+  }
+
+  async function makeFreshKey() {
+    setKeyBusy(true);
+    setKeyError('');
+    try {
+      const r = await fetch('/api/keys', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'make', note: keyNote }) });
+      const d = (await r.json()) as { ok?: boolean; key?: string; print?: string; error?: string; login?: boolean };
+      if (r.status === 401 && d.login) {
+        setLoggedOut(true);
+      } else if (!r.ok || !d.ok || !d.key || !d.print) {
+        setKeyError(d.error ?? `The key could not be made (${r.status}).`);
+      } else {
+        setFreshKey({ key: d.key, print: d.print });
+        setKeyNote('');
+        void readBook();
+      }
+    } catch {
+      setKeyError('The key could not be made. Try again.');
+    } finally {
+      setKeyBusy(false);
+    }
+  }
+
+  async function turnKeyOff(print: string) {
+    setConfirmOff(null);
+    setKeyBusy(true);
+    setKeyError('');
+    try {
+      const r = await fetch('/api/keys', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'off', print }) });
+      const d = (await r.json()) as { ok?: boolean; error?: string; login?: boolean };
+      if (r.status === 401 && d.login) {
+        setLoggedOut(true);
+      } else if (!r.ok || !d.ok) {
+        setKeyError(d.error ?? `The key could not be turned off (${r.status}).`);
+      } else {
+        void readBook();
+      }
+    } catch {
+      setKeyError('The key could not be turned off. Try again.');
+    } finally {
+      setKeyBusy(false);
+    }
   }
 
   async function runChecks() {
@@ -320,7 +411,6 @@ export default function Console() {
   }
 
   const mcpAddress = `${origin}/api/mcp`;
-  const key = personal ? (status?.key ?? null) : null;
 
   if (mustLogIn) {
     return (
@@ -558,6 +648,96 @@ export default function Console() {
                 <p className="soft" style={{ marginBottom: 0 }}>
                   Keep the key to yourself: whoever has it can use this Scrapy. It is made from your password. A new password (the setting <code>SCRAPY_PASSWORD</code>) makes a new key and logs every browser out.
                 </p>
+
+                <h2 className="label">Fresh keys, one for each AI</h2>
+                <p className="soft">
+                  Make a key here for each AI you use. A fresh key is shown once, right after it is made: Scrapy never keeps it and cannot show it
+                  again. It works on every copy of this Scrapy at once, without restart, and it stays live until you turn it off &mdash; or until a new
+                  password ends every key.
+                </p>
+                {book !== null && (
+                  <table className="keys">
+                    <tbody>
+                      {book.first && (
+                        <tr>
+                          <td>The first key &mdash; made from your password</td>
+                          <td>
+                            <span className={`pill ${book.first.off ? 'bad' : 'good'}`}>{book.first.off ? 'turned off' : 'live'}</span>
+                          </td>
+                          <td>
+                            {!book.first.off &&
+                              (confirmOff === book.first.print ? (
+                                <button type="button" disabled={keyBusy} onClick={() => void turnKeyOff(book.first!.print)}>
+                                  Turn it off?
+                                </button>
+                              ) : (
+                                <button type="button" disabled={keyBusy} onClick={() => setConfirmOff(book.first!.print)}>
+                                  Turn off
+                                </button>
+                              ))}
+                          </td>
+                        </tr>
+                      )}
+                      {book.mints.map((mint) => (
+                        <tr key={mint.print}>
+                          <td>
+                            {mint.note || '(no name)'}
+                            {mint.at > 0 && <span className="soft"> &middot; made {new Date(mint.at).toLocaleString()}</span>}
+                          </td>
+                          <td>
+                            <span className={`pill ${mint.off ? 'bad' : 'good'}`}>{mint.off ? 'turned off' : 'live'}</span>
+                          </td>
+                          <td>
+                            {!mint.off &&
+                              (confirmOff === mint.print ? (
+                                <button type="button" disabled={keyBusy} onClick={() => void turnKeyOff(mint.print)}>
+                                  Turn it off?
+                                </button>
+                              ) : (
+                                <button type="button" disabled={keyBusy} onClick={() => setConfirmOff(mint.print)}>
+                                  Turn off
+                                </button>
+                              ))}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                {freshKey && (
+                  <div className="card fresh-key" role="status">
+                    <p style={{ marginTop: 0 }}>
+                      Your new key. Copy it into your AI app&apos;s settings now &mdash; this is the one time it is shown.
+                    </p>
+                    <div className="row">
+                      <code className="address">{freshKey.key}</code>
+                      <CopyButton text={freshKey.key} label="Copy the new key" />
+                    </div>
+                    <div className="row" style={{ marginTop: 8 }}>
+                      <button type="button" onClick={() => setFreshKey(null)}>
+                        I have it
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <div className="row">
+                  <input
+                    type="text"
+                    aria-label="A name for the new key"
+                    placeholder="A name, as in “Claude on my laptop” (optional)"
+                    maxLength={60}
+                    value={keyNote}
+                    onChange={(e) => setKeyNote(e.target.value)}
+                  />
+                  <button type="button" disabled={keyBusy} onClick={() => void makeFreshKey()}>
+                    Make a new key
+                  </button>
+                </div>
+                {keyError !== '' && (
+                  <p className="error" role="alert">
+                    {keyError}
+                  </p>
+                )}
               </>
             )}
             {status && (

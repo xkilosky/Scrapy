@@ -211,6 +211,34 @@ button:focus-visible {
   outline-offset: 1px;
 }
 
+/* The book of keys on the dashboard. */
+table.keys {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 4px 0 12px;
+}
+
+table.keys td {
+  padding: 8px 8px 8px 0;
+  border-top: 1px solid var(--line);
+  vertical-align: middle;
+  font-size: 14px;
+}
+
+table.keys td:last-child {
+  text-align: right;
+  padding-right: 0;
+  white-space: nowrap;
+}
+
+.fresh-key {
+  border: 1px solid var(--good);
+  background: var(--good-bg);
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin: 0 0 12px;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));

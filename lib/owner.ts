@@ -8,20 +8,44 @@
  * - the login of a browser. After the right password, the browser is handed a
  *   signed pass (a cookie) that is good for 30 days. The pass opens the
  *   dashboard and the addresses behind it;
- * - the key of an AI: a long text that the AI sends with every request. The
+ * - the keys of AI apps. There is a key that is made from the password, and
+ *   the owner can also make fresh ones on the dashboard, one for each AI: a
  *   key opens the MCP address, and nothing else. A key that got out cannot be
  *   used to read the log.
  *
- * Changing the password changes both. Every browser is logged out, and every
- * AI needs the new key.
+ * A fresh key is not kept anywhere: it is a random text, wrapped with the
+ * password's own seal, so any copy of Scrapy can tell whether a key belongs
+ * to the password of today. There is no list to keep and no date on it: a
+ * made key works on every copy of Scrapy at once and stops working only when
+ * the password changes.
+ *
+ * Changing the password changes everything. Every browser is logged out, and
+ * every AI needs the key(s) of the new password.
  */
-import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { onVercel, ownerPassword } from './config';
 import { sharedLayer, type SharedLayer } from './store';
 
 export const SESSION_COOKIE = 'scrapy_session';
 export const SESSION_DAYS = 30;
 const SESSION_SEC = SESSION_DAYS * 24 * 3_600;
+
+/** The start of every key ("scrapy_" plus 43 characters). */
+const KEY_START = 'scrapy_';
+
+/** The fixed word inside a wrapped key: a random text is not taken for a key by accident. */
+const KEY_MARK = 'scrapy-owned key ⸱ ';
+/** The wrapped key's payload: the word, plus 14 base64url characters of noise (10 random bytes). */
+const KEY_BODY = Buffer.byteLength(KEY_MARK, 'utf8') + 14;
+/** The wrapped key, as bytes: the iv, the seal mark, and the wrapped payload. */
+const KEY_RAW = 12 + 16 + KEY_BODY;
+
+/** The name of the book in the shared memory. */
+const BLOCKED_KEYS = 'scrapy key book v1';
+/** The book outlives every key: it is written with a life of 400 days. */
+const BOOK_SEC = 400 * 24 * 3_600;
+/** How many turned-off keys are kept before the oldest note is dropped. */
+const BLOCKED_KEEP = 50;
 
 const b64 = (bytes: Buffer): string => bytes.toString('base64url');
 
@@ -57,16 +81,77 @@ export function passwordFits(typed: string): boolean {
   return password.usable && sameText(typed.trim(), password.value);
 }
 
-/** The key an AI sends. null while no usable password is set. */
+/** The first key: the one that is made from the password itself. null while no usable password is set. */
 export function agentKey(): string | null {
   const bytes = made('scrapy agent key v1');
   return bytes ? `scrapy_${b64(bytes).slice(0, 32)}` : null;
 }
 
-export function keyFits(key: string | null): boolean {
-  const real = agentKey();
-  return key !== null && real !== null && sameText(key, real);
+/**
+ * A fresh key, made on the dashboard by the owner. Random characters, wrapped
+ * once (AES-GCM) with a seal that only the password can make. The key is kept
+ * nowhere: to check one, it is unwrapped with today's password, and only a
+ * key sealed by this password unwraps cleanly. Inside sits a fixed word, so a
+ * random text is not taken for a key by accident. Seal-print is below.
+ */
+export function makeKey(): string | null {
+  const seal = made('scrapy seal v1');
+  if (!seal) return null;
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', seal, iv);
+  const body = Buffer.concat([cipher.update(Buffer.from(KEY_MARK + b64(randomBytes(10)), 'utf8')), cipher.final()]);
+  // The bytes are joined first and coded once: coding the pieces one by one would break the seal mark on the way back.
+  return `scrapy_${b64(Buffer.concat([iv, cipher.getAuthTag(), body]))}`;
 }
+
+/**
+ * The seal-print of a key: SHA-256 of its raw bytes. Only this is kept in the
+ * book of keys, so the book cannot give a key back.
+ */
+export function keyPrint(key: string): string {
+  return b64(createHash('sha256').update(Buffer.from(key.slice(KEY_START.length), 'base64url')).digest());
+}
+
+/**
+ * A fresh key for the owner, booked under its seal-print. The key itself is
+ * kept nowhere and can never be shown again: it goes back to the owner once,
+ * right here. null while no usable password is set.
+ */
+export async function mintKey(note: string): Promise<string | null> {
+  const key = makeKey();
+  if (key === null) return null;
+  await getKeyBook().remember(keyPrint(key), note);
+  return key;
+}
+
+/** True for a key the seal of today's password can open: made by this password, fresh or the one from the password. */
+function keyOpens(key: string | null): boolean {
+  if (key === null || !key.startsWith(KEY_START)) return false;
+  const first = agentKey();
+  if (first !== null && sameText(key, first)) return true;
+  if (key.length > 200) return false;
+  const seal = made('scrapy seal v1');
+  if (!seal) return false;
+  const raw = Buffer.from(key.slice(KEY_START.length), 'base64url');
+  if (raw.length !== KEY_RAW) return false;
+  try {
+    const cipher = createDecipheriv('aes-256-gcm', seal, raw.subarray(0, 12));
+    cipher.setAuthTag(raw.subarray(12, 28));
+    const opened = Buffer.concat([cipher.update(raw.subarray(28)), cipher.final()]).toString('utf8');
+    return opened.startsWith(KEY_MARK);
+  } catch {
+    // Not sealed by this password, or touched on the way: not a key of this Scrapy.
+    return false;
+  }
+}
+
+/** True for a key of this Scrapy that is not turned off. */
+export async function keyFits(key: string | null): Promise<boolean> {
+  if (!keyOpens(key)) return false;
+  return !(await getKeyBook().blocks(keyPrint(key as string)));
+}
+
+
 
 /**
  * The keys a request carries. Three places are accepted, because AI apps differ
@@ -94,12 +179,14 @@ export function keyFrom(request: Request): string | null {
 }
 
 /**
- * True for a request that carries the owner's key in one of the three places.
- * One right key is enough: an AI app may put something of its own into the
- * Authorization header while the owner's key sits at the end of the address.
+ * True for a request that carries a key of the owner in one of the three
+ * places, and whose key is not turned off. One right key is enough: an AI app
+ * may put something of its own into the Authorization header while the
+ * owner's key sits at the end of the address.
  */
-export function carriesKey(request: Request): boolean {
-  return keysFrom(request).some((key) => keyFits(key));
+export async function carriesKey(request: Request): Promise<boolean> {
+  for (const key of keysFrom(request)) if (await keyFits(key)) return true;
+  return false;
 }
 
 /** A new pass for a browser that gave the right password. null while no usable password is set. */
@@ -204,6 +291,115 @@ export function sessionCookie(value: string, request: Request): string {
 /** Takes the pass back: the answer to "Log out". */
 export function noSessionCookie(request: Request): string {
   return `${SESSION_COOKIE}=; Max-Age=0; ${cookieRules(request)}`;
+}
+
+/**
+ * The book of the made keys, and of the ones that are turned off.
+ *
+ * A fresh key itself is kept nowhere. The book keeps only its seal-print
+ * (SHA-256 of the wrapped key, so the book cannot give a key away), the note
+ * the owner gave it, when it was made, and whether it is turned off. On
+ * Vercel the book sits in the shared memory, so every copy of Scrapy sees the
+ * same keys within moments. Turning a key off is the one way a key stops
+ * working besides a new password.
+ */
+export interface MintEntry {
+  /** The seal-print of the key: its name in the book. Never the key itself. */
+  print: string;
+  /** What the owner called it, as in "Claude on my laptop". */
+  note: string;
+  /** When it was made, in milliseconds since 1970. */
+  at: number;
+  /** True once the owner has turned it off. */
+  off: boolean;
+}
+
+export interface KeyBook {
+  /** Puts a fresh key into the book, next to its seal-print. */
+  remember(print: string, note: string): Promise<void>;
+  /** Turns a key off. It opens nothing from then on, on every copy of Scrapy. */
+  off(print: string): Promise<boolean>;
+  /** True for a key that is turned off. */
+  blocks(print: string): Promise<boolean>;
+  /** What is in the book. */
+  list(): Promise<MintEntry[]>;
+}
+
+export function createKeyBook(shared: () => Promise<SharedLayer | null> = sharedLayer, now: () => number = Date.now): KeyBook {
+  /** This server's own copy of the book, filled from the shared one. */
+  const mine = new Map<string, MintEntry>();
+
+  const asEntry = (it: unknown): MintEntry | null => {
+    const e = it as { p?: unknown; n?: unknown; a?: unknown; o?: unknown } | null;
+    return e && typeof e.p === 'string' ? { print: e.p, note: typeof e.n === 'string' ? e.n : '', at: typeof e.a === 'number' ? e.a : 0, off: e.o === true } : null;
+  };
+
+  /** Takes over what the other servers have in the book. A key that one server turned off stays off. */
+  async function learn(): Promise<void> {
+    try {
+      const there = await (await shared())?.get(BLOCKED_KEYS);
+      if (Array.isArray(there)) {
+        for (const it of there) {
+          const e = asEntry(it);
+          if (e === null) continue;
+          const known = mine.get(e.print);
+          // Merge: the note and the date of the older entry; "off" of either one.
+          mine.set(e.print, known ? { print: e.print, note: known.note || e.note, at: Math.min(known.at || e.at, e.at || known.at), off: known.off || e.off } : e);
+        }
+      }
+    } catch {
+      // The shared memory did not answer. This server's own book still holds.
+    }
+  }
+
+  /** Writes the whole book back to the shared memory. */
+  async function tell(): Promise<void> {
+    while (mine.size > BLOCKED_KEEP) mine.delete(mine.keys().next().value as string);
+    try {
+      const layer = await shared();
+      await layer?.set(BLOCKED_KEYS, [...mine.values()].map((e) => ({ p: e.print, n: e.note, a: e.at, o: e.off })), BOOK_SEC);
+    } catch {
+      // The shared memory did not answer. This server's own book still holds.
+    }
+  }
+
+  return {
+    async remember(print, note) {
+      mine.set(print, { print, note: note.trim().slice(0, 60), at: now(), off: false });
+      await learn();
+      await tell();
+    },
+    async off(print) {
+      await learn();
+      const known = mine.get(print);
+      if (!known) return false;
+      mine.set(print, { ...known, off: true });
+      await tell();
+      return true;
+    },
+    async blocks(print) {
+      // A key may have been turned off on another copy: always look at the shared book.
+      await learn();
+      return mine.get(print)?.off === true;
+    },
+    async list() {
+      await learn();
+      return [...mine.values()].sort((a, b) => b.at - a.at);
+    },
+  };
+}
+
+const KEY_BOOK = Symbol.for('scrapy.keyBook');
+
+/** The book of keys, shared between the copies of Scrapy. */
+export function getKeyBook(): KeyBook {
+  const g = globalThis as Record<symbol, KeyBook | undefined>;
+  return (g[KEY_BOOK] ??= createKeyBook());
+}
+
+/** Only for tests. */
+export function resetKeyBook(): void {
+  delete (globalThis as Record<symbol, KeyBook | undefined>)[KEY_BOOK];
 }
 
 /** How many wrong passwords are put up with. */

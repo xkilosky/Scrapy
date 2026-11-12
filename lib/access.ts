@@ -70,9 +70,9 @@ export function closedMcpResponse(): Response {
  * AI apps start a login of their own (OAuth) that Scrapy does not have, and
  * the person sees that login fail instead of this sentence.
  */
-export function mcpRefusal(request: Request): Response | null {
+export async function mcpRefusal(request: Request): Promise<Response | null> {
   const state = access();
   if (state === 'closed') return closedMcpResponse();
-  if (state === 'personal' && !carriesKey(request)) return mcpError(KEY_TEXT);
+  if (state === 'personal' && !(await carriesKey(request))) return mcpError(KEY_TEXT);
   return null;
 }

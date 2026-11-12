@@ -80,6 +80,11 @@ interface Asked {
 let asked: Asked[] = [];
 let copied: string[] = [];
 let answers: { status: unknown; docs: DocsPayload | 'down'; login: () => Response | Promise<Response>; loggedIn: boolean };
+/** The fake book of keys behind /api/keys. */
+let book: { first: { print: string; off: boolean }; mints: { print: string; note: string; at: number; off: boolean }[] };
+const FRESH_KEY = 'scrapy_freshFfEeDdCcBbAa0011223344556600';
+const FIRST_PRINT = 'print-of-the-first-key';
+let made = 0;
 
 /** What Scrapy hands the docs pages, made by the real code, for a Scrapy of the given kind. */
 function docsOf(access: 'personal' | 'open' | 'closed'): DocsPayload {
@@ -96,6 +101,8 @@ beforeEach(() => {
   nav.instead.length = 0;
   nav.cookie = undefined;
   answers = { status: OWNER, docs: docsOf('personal'), login: () => Response.json({ ok: true }), loggedIn: true };
+  book = { first: { print: FIRST_PRINT, off: false }, mints: [] };
+  made = 0;
   vi.stubGlobal('scrollTo', vi.fn());
   Element.prototype.scrollIntoView = vi.fn();
   vi.stubGlobal(
@@ -108,6 +115,24 @@ beforeEach(() => {
       if (url.endsWith('/api/docs')) return answers.docs === 'down' ? new Response('no', { status: 500 }) : Response.json(answers.docs);
       if (url.endsWith('/api/login')) return answers.login();
       if (url.endsWith('/api/logout')) return Response.json({ ok: true });
+      if (url.endsWith('/api/keys')) {
+        if (!answers.loggedIn) return refused();
+        if ((init?.method ?? 'GET') === 'GET') return Response.json({ ok: true, personal: true, ...book });
+        const want = typeof init?.body === 'string' ? (JSON.parse(init.body) as { action?: string; note?: string; print?: string }) : {};
+        if (want.action === 'make') {
+          made += 1;
+          const print = `print-${made}`;
+          book.mints.unshift({ print, note: want.note ?? '', at: 1_800_000_000_000 + made, off: false });
+          return Response.json({ ok: true, key: FRESH_KEY, print });
+        }
+        if (want.action === 'off') {
+          const found = book.mints.find((m) => m.print === want.print);
+          if (book.first.print === want.print) book.first.off = true;
+          if (found) found.off = true;
+          return Response.json({ ok: true, found: Boolean(found) || want.print === book.first.print });
+        }
+        return Response.json({ ok: false, error: 'Unknown action.' }, { status: 400 });
+      }
       if (url.startsWith('/api/logs')) return answers.loggedIn ? Response.json(EMPTY_FEED) : refused();
       if (url.endsWith('/api/try')) return answers.loggedIn ? Response.json({ ok: true, text: 'Title: Example Domain', trace: { totalMs: 200, cache: 'miss', steps: [], contacts: [], hosts: [] } }) : refused();
       if (url.endsWith('/api/check')) return answers.loggedIn ? Response.json({ error: 'not in this test' }, { status: 500 }) : refused();
@@ -202,6 +227,75 @@ describe('the dashboard of a personal Scrapy: the key', () => {
     await dashboard('#address', 'The address for your agent');
     await screen.findByText(/Tools ready now/);
     expect(screen.queryByRole('heading', { name: 'The key' })).toBeNull();
+  });
+});
+
+describe('the dashboard of a personal Scrapy: the fresh keys', () => {
+  it('makes a fresh key, shows it once, and books it under its name', async () => {
+    await dashboard('#address', 'The address for your agent');
+    await screen.findByRole('heading', { name: 'Fresh keys, one for each AI' });
+    const u = user();
+
+    // The first key is listed, live.
+    const firstRow = (await screen.findByText(/^The first key/)).closest('tr');
+    expect(firstRow && within(firstRow).getByText('live')).toBeTruthy();
+
+    // Make one with a name. It is shown once, with a copy button, and booked.
+    await u.type(screen.getByRole('textbox', { name: 'A name for the new key' }), 'Claude on my laptop');
+    await u.click(screen.getByRole('button', { name: 'Make a new key' }));
+    const box = await screen.findByText(/this is the one time it is shown/);
+    expect(box.textContent).toContain('Copy it into your AI app');
+    const code = document.querySelector('.fresh-key code');
+    expect(code?.textContent).toBe(FRESH_KEY);
+    await u.click(screen.getByRole('button', { name: 'Copy the new key' }));
+    expect(copied).toEqual([FRESH_KEY]);
+    expect(requests('/api/keys').some((a) => a.method === 'POST' && (a.body as { action?: string; note?: string }).action === 'make' && (a.body as { note?: string }).note === 'Claude on my laptop')).toBe(
+      true,
+    );
+    await u.click(screen.getByRole('button', { name: 'I have it' }));
+    expect(shown()).not.toContain(FRESH_KEY);
+    // And the name shows in the list, live.
+    expect((await screen.findByText(/^Claude on my laptop/)).closest('tr')?.textContent).toContain('live');
+  });
+
+  it('turns a key off, after asking once more', async () => {
+    await dashboard('#address', 'The address for your agent');
+    await screen.findByRole('heading', { name: 'Fresh keys, one for each AI' });
+    const u = user();
+    await u.click(screen.getByRole('button', { name: 'Make a new key' }));
+    await screen.findByText(/this is the one time it is shown/);
+    await u.click(screen.getByRole('button', { name: 'I have it' }));
+
+    // One click does not kill it: the button first asks.
+    const row = (await screen.findByText(/\(no name\)/)).closest('tr') as HTMLElement;
+    await u.click(within(row).getByRole('button', { name: 'Turn off' }));
+    expect(row.textContent).toContain('live');
+    await u.click(within(row).getByRole('button', { name: 'Turn it off?' }));
+    await screen.findByText('turned off');
+    expect(
+      requests('/api/keys').some((a) => {
+        const body = a.body as { action?: string; print?: string } | undefined;
+        return body?.action === 'off' && body.print === 'print-1';
+      }),
+    ).toBe(true);
+    expect(shown()).not.toContain(FRESH_KEY);
+  });
+
+  it('can turn the first key off too', async () => {
+    await dashboard('#address', 'The address for your agent');
+    const firstRow = (await screen.findByText(/^The first key/)).closest('tr') as HTMLElement;
+    const u = user();
+    await u.click(within(firstRow).getByRole('button', { name: 'Turn off' }));
+    await u.click(within(firstRow).getByRole('button', { name: 'Turn it off?' }));
+    await waitFor(() => expect(firstRow.textContent).toContain('turned off'));
+  });
+
+  it('shows no fresh keys where Scrapy has no password', async () => {
+    answers.status = OPEN;
+    await dashboard('#address', 'The address for your agent');
+    await screen.findByText(/Tools ready now/);
+    expect(screen.queryByRole('heading', { name: 'Fresh keys, one for each AI' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Make a new key' })).toBeNull();
   });
 });
 

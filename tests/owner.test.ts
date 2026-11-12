@@ -123,26 +123,26 @@ describe('the key for an AI', () => {
     expect(key).not.toContain(Buffer.from(PASSWORD).toString('base64url').slice(0, 8));
   });
 
-  it('fits only as a whole, and never while no password is set', () => {
+  it('fits only as a whole, and never while no password is set', async () => {
     expect(agentKey()).toBeNull();
-    expect(keyFits(null)).toBe(false);
-    expect(keyFits('')).toBe(false);
-    expect(keyFits('scrapy_')).toBe(false);
-    expect(keyFits('null')).toBe(false);
+    expect(await keyFits(null)).toBe(false);
+    expect(await keyFits('')).toBe(false);
+    expect(await keyFits('scrapy_')).toBe(false);
+    expect(await keyFits('null')).toBe(false);
 
     process.env.SCRAPY_PASSWORD = PASSWORD;
     const key = agentKey() ?? '';
-    expect(keyFits(key)).toBe(true);
-    expect(keyFits(key.slice(0, -1))).toBe(false);
-    expect(keyFits(`${key}x`)).toBe(false);
-    expect(keyFits(key.toUpperCase())).toBe(false);
-    expect(keyFits(null)).toBe(false);
-    expect(keyFits('')).toBe(false);
+    expect(await keyFits(key)).toBe(true);
+    expect(await keyFits(key.slice(0, -1))).toBe(false);
+    expect(await keyFits(`${key}x`)).toBe(false);
+    expect(await keyFits(key.toUpperCase())).toBe(false);
+    expect(await keyFits(null)).toBe(false);
+    expect(await keyFits('')).toBe(false);
     // The password itself is not the key.
-    expect(keyFits(PASSWORD)).toBe(false);
+    expect(await keyFits(PASSWORD)).toBe(false);
 
     process.env.SCRAPY_PASSWORD = OTHER;
-    expect(keyFits(key)).toBe(false);
+    expect(await keyFits(key)).toBe(false);
   });
 
   it('is read from the Authorization header, from x-scrapy-key, or from the end of the address', () => {
@@ -162,24 +162,24 @@ describe('the key for an AI', () => {
     expect(keysFrom(get('/api/mcp?key=', { authorization: 'Bearer ', 'x-scrapy-key': '  ' }))).toEqual([]);
   });
 
-  it('is enough in one of the three places, whatever an app puts into the others', () => {
+  it('is enough in one of the three places, whatever an app puts into the others', async () => {
     process.env.SCRAPY_PASSWORD = PASSWORD;
     const key = agentKey() ?? '';
-    expect(carriesKey(get('/api/mcp', { authorization: `Bearer ${key}` }))).toBe(true);
-    expect(carriesKey(get('/api/mcp', { 'x-scrapy-key': key }))).toBe(true);
-    expect(carriesKey(get(`/api/mcp?key=${key}`))).toBe(true);
+    expect(await carriesKey(get('/api/mcp', { authorization: `Bearer ${key}` }))).toBe(true);
+    expect(await carriesKey(get('/api/mcp', { 'x-scrapy-key': key }))).toBe(true);
+    expect(await carriesKey(get(`/api/mcp?key=${key}`))).toBe(true);
     // An app that sends a token of its own in the Authorization header, with the owner's key at the end of the address.
-    expect(carriesKey(get(`/api/mcp?key=${key}`, { authorization: 'Bearer some-token-of-the-app' }))).toBe(true);
-    expect(carriesKey(get('/api/mcp?key=wrong', { authorization: 'Bearer wrong', 'x-scrapy-key': key }))).toBe(true);
+    expect(await carriesKey(get(`/api/mcp?key=${key}`, { authorization: 'Bearer some-token-of-the-app' }))).toBe(true);
+    expect(await carriesKey(get('/api/mcp?key=wrong', { authorization: 'Bearer wrong', 'x-scrapy-key': key }))).toBe(true);
     // No right key anywhere: no.
-    expect(carriesKey(get('/api/mcp'))).toBe(false);
-    expect(carriesKey(get('/api/mcp?key=wrong', { authorization: 'Bearer wrong', 'x-scrapy-key': 'wrong' }))).toBe(false);
-    expect(carriesKey(get(`/api/mcp?other=${key}`, { cookie: `key=${key}`, 'x-key': key, authorization: `Basic ${key}` }))).toBe(false);
+    expect(await carriesKey(get('/api/mcp'))).toBe(false);
+    expect(await carriesKey(get('/api/mcp?key=wrong', { authorization: 'Bearer wrong', 'x-scrapy-key': 'wrong' }))).toBe(false);
+    expect(await carriesKey(get(`/api/mcp?other=${key}`, { cookie: `key=${key}`, 'x-key': key, authorization: `Basic ${key}` }))).toBe(false);
     // And never while there is no usable password.
     process.env.SCRAPY_PASSWORD = 'short';
-    expect(carriesKey(get('/api/mcp?key=', { authorization: 'Bearer null' }))).toBe(false);
+    expect(await carriesKey(get('/api/mcp?key=', { authorization: 'Bearer null' }))).toBe(false);
     delete process.env.SCRAPY_PASSWORD;
-    expect(carriesKey(get(`/api/mcp?key=${key}`))).toBe(false);
+    expect(await carriesKey(get(`/api/mcp?key=${key}`))).toBe(false);
   });
 });
 
@@ -206,7 +206,7 @@ describe('the pass of a browser', () => {
     expect(sessionFits(b, NOW)).toBe(true);
   });
 
-  it('cannot be made longer, or made up', () => {
+  it('cannot be made longer, or made up', async () => {
     process.env.SCRAPY_PASSWORD = PASSWORD;
     const pass = newSession(NOW) ?? '';
     const [version, expires, nonce, mark] = pass.split('.') as [string, string, string, string];
@@ -225,7 +225,7 @@ describe('the pass of a browser', () => {
     for (const junk of [null, undefined, '', '.', '...', 'abc', '1.2.3.4', 'x'.repeat(5_000)]) expect(sessionFits(junk, NOW), String(junk).slice(0, 20)).toBe(false);
     // The key of an AI is not a pass, and a pass is not a key.
     expect(sessionFits(agentKey(), NOW)).toBe(false);
-    expect(keyFits(pass)).toBe(false);
+    expect(await keyFits(pass)).toBe(false);
   });
 
   it('ends for every browser when the password changes', () => {
