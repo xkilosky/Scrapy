@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Docs for humans: the person who connects an AI to Scrapy.
+ * The MCP doc: for the person who connects an AI to Scrapy.
  *
  * Four things, in the order they are needed: how to connect, the limits, how
  * Scrapy gets an answer, and how to read the log.
@@ -561,7 +561,7 @@ function Logs({ facts }: { facts: Facts }) {
   );
 }
 
-export interface DocsHumansProps {
+export interface McpDocProps {
   docs: DocsPayload | null;
   origin: string;
   failed: boolean;
@@ -571,7 +571,7 @@ export interface DocsHumansProps {
   onClient: (id: ClientId) => void;
 }
 
-export function DocsHumans({ docs, origin, failed, onRetry, client, onClient }: DocsHumansProps) {
+export function McpDoc({ docs, origin, failed, onRetry, client, onClient }: McpDocProps) {
   if (failed) {
     return (
       <section className="card">

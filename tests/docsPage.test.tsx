@@ -11,8 +11,8 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import CheckPage from '@/app/page';
-import { CLIENTS, connectSnippets, handCheck } from '@/app/ui/DocsHumans';
-import { MENU, viewFromHash } from '@/app/ui/menu';
+import { CLIENTS, connectSnippets, handCheck } from '@/app/ui/McpDoc';
+import { MENU, isOtherName, viewFromHash } from '@/app/ui/menu';
 import { docsPayload, type DocsPayload } from '@/lib/docs';
 
 const STATUS = {
@@ -86,8 +86,8 @@ async function open(hash: string, heading: string): Promise<void> {
   await screen.findByRole('heading', { level: 1, name: heading });
 }
 
-const openHumans = async (): Promise<void> => {
-  await open('#docs-humans', 'Docs for humans');
+const openMcpDoc = async (): Promise<void> => {
+  await open('#mcp-doc', 'MCP doc');
   await screen.findByRole('heading', { level: 2, name: '1. Connect your AI' });
 };
 const openAi = async (): Promise<void> => {
@@ -106,13 +106,52 @@ const codeOf = (label: string | RegExp): string => screen.getByLabelText(label).
 const docsCalls = (): number => asked.filter((u) => u.endsWith('/api/docs')).length;
 
 describe('the menu', () => {
-  it('has a third section, Docs, with a page for people and a page for the AI', () => {
+  it('has a third section, Docs, with the MCP doc and a page for the AI', () => {
     expect(MENU.map((section) => section.title)).toEqual(['Dashboard', 'Logs', 'Docs']);
-    expect(MENU[2].items.map((item) => `${item.id}: ${item.label}`)).toEqual(['docs-humans: For humans', 'docs-ai: For the AI']);
-    expect(viewFromHash('#docs-humans')).toBe('docs-humans');
+    expect(MENU[2].items.map((item) => `${item.id}: ${item.label}`)).toEqual(['mcp-doc: MCP doc', 'docs-ai: For the AI']);
+    expect(viewFromHash('#mcp-doc')).toBe('mcp-doc');
     expect(viewFromHash('#docs-ai')).toBe('docs-ai');
     // The obvious address works too.
-    expect(viewFromHash('#docs')).toBe('docs-humans');
+    expect(viewFromHash('#docs')).toBe('mcp-doc');
+    // And so does the address the MCP doc had under its first name.
+    expect(viewFromHash('#docs-humans')).toBe('mcp-doc');
+    expect(isOtherName('#docs')).toBe(true);
+    expect(isOtherName('#docs-humans')).toBe(true);
+    expect(isOtherName('#mcp-doc')).toBe(false);
+    expect(isOtherName('#nothing-like-this')).toBe(false);
+  });
+
+  it('takes a word that every JavaScript object knows for an unknown address, like any other', () => {
+    for (const word of ['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__']) {
+      expect(viewFromHash(`#${word}`)).toBe('checks');
+      expect(isOtherName(`#${word}`)).toBe(false);
+    }
+  });
+
+  it('calls the page "MCP doc" in the menu, as its title, and wherever another part points to it', async () => {
+    await openMcpDoc();
+    expect(document.body.textContent).not.toMatch(/for humans/i);
+    cleanup();
+    await openAi();
+    expect(document.body.textContent).not.toMatch(/for humans/i);
+  });
+
+  it('opens the MCP doc at its first address too, and puts its own address in its place', async () => {
+    const steps = window.history.length;
+    await open('#docs-humans', 'MCP doc');
+    await screen.findByRole('heading', { level: 2, name: '1. Connect your AI' });
+    expect(window.location.hash).toBe('#mcp-doc');
+    // The address was swapped, not added: Back does not lead to the old one.
+    expect(window.history.length).toBe(steps);
+    cleanup();
+
+    await open('#docs', 'MCP doc');
+    expect(window.location.hash).toBe('#mcp-doc');
+    cleanup();
+
+    // An unknown address is left as it was typed.
+    await open('#nothing-like-this', 'Run checks');
+    expect(window.location.hash).toBe('#nothing-like-this');
   });
 
   it('opens the two pages from the drawer, and reads the docs from Scrapy once', async () => {
@@ -126,11 +165,11 @@ describe('the menu', () => {
     const menu = screen.getByRole('dialog', { name: 'Menu' });
     expect(within(menu).getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['Dashboard', 'Logs', 'Docs']);
     const list = within(menu).getByRole('list', { name: 'Docs' });
-    expect(within(list).getAllByRole('link').map((a) => a.textContent)).toEqual(['For humans', 'For the AI']);
+    expect(within(list).getAllByRole('link').map((a) => a.textContent)).toEqual(['MCP doc', 'For the AI']);
 
-    await u.click(within(list).getByRole('link', { name: 'For humans' }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Docs for humans' })).toBeTruthy();
-    expect(window.location.hash).toBe('#docs-humans');
+    await u.click(within(list).getByRole('link', { name: 'MCP doc' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'MCP doc' })).toBeTruthy();
+    expect(window.location.hash).toBe('#mcp-doc');
     await screen.findByRole('heading', { level: 2, name: '1. Connect your AI' });
     expect(docsCalls()).toBe(1);
 
@@ -158,9 +197,9 @@ describe('the menu', () => {
   });
 });
 
-describe('Docs for humans', () => {
+describe('The MCP doc', () => {
   it('has the four things a person needs, in order', async () => {
-    await openHumans();
+    await openMcpDoc();
     const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
     expect(headings).toEqual(['1. Connect your AI', '2. Limits', '3. How Scrapy gets an answer', '4. How to read the logs']);
     const nav = screen.getByRole('navigation', { name: 'On this page' });
@@ -169,7 +208,7 @@ describe('Docs for humans', () => {
 
   it('jumps to a section, and takes the keyboard there too', async () => {
     const u = user();
-    await openHumans();
+    await openMcpDoc();
     await u.click(within(screen.getByRole('navigation', { name: 'On this page' })).getByRole('button', { name: '3. How Scrapy gets an answer' }));
     const section = card('3. How Scrapy gets an answer');
     expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1);
@@ -178,7 +217,7 @@ describe('Docs for humans', () => {
 
   it('gives the address, and copies it', async () => {
     const u = user();
-    await openHumans();
+    await openMcpDoc();
     const connect = card('1. Connect your AI');
     expect(connect.querySelector('code.address')?.textContent).toBe(ADDRESS);
     await u.click(within(connect).getAllByRole('button', { name: 'Copy' })[0] as HTMLElement);
@@ -188,7 +227,7 @@ describe('Docs for humans', () => {
 
   it('shows where the address goes, for each kind of AI app', async () => {
     const u = user();
-    await openHumans();
+    await openMcpDoc();
     const tabs = within(screen.getByRole('tablist', { name: 'Kind of AI app' })).getAllByRole('tab');
     expect(tabs.map((t) => t.textContent)).toEqual(['Cursor', 'Claude Code', 'VS Code', 'Local apps only', 'Your own code']);
     expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false', 'false']);
@@ -222,7 +261,7 @@ describe('Docs for humans', () => {
 
   it('lets the arrow keys move between the kinds of app, and the Tab key reach only the chosen one', async () => {
     const u = user();
-    await openHumans();
+    await openMcpDoc();
     const tab = (name: string): HTMLElement => screen.getByRole('tab', { name });
     expect(screen.getAllByRole('tab').map((t) => t.getAttribute('tabindex'))).toEqual(['0', '-1', '-1', '-1', '-1']);
 
@@ -247,7 +286,7 @@ describe('Docs for humans', () => {
 
   it('still has the chosen kind of app after a visit to another part', async () => {
     const u = user();
-    await openHumans();
+    await openMcpDoc();
     await u.click(screen.getByRole('tab', { name: 'Claude Code' }));
     expect(codeOf('For Claude Code')).toContain('claude mcp add');
 
@@ -256,7 +295,7 @@ describe('Docs for humans', () => {
     expect(screen.queryByRole('tab', { name: 'Claude Code' })).toBeNull();
 
     window.history.back();
-    await screen.findByRole('heading', { level: 1, name: 'Docs for humans' });
+    await screen.findByRole('heading', { level: 1, name: 'MCP doc' });
     expect(screen.getByRole('tab', { name: 'Claude Code' }).getAttribute('aria-selected')).toBe('true');
     expect(codeOf('For Claude Code')).toContain('claude mcp add');
   });
@@ -266,7 +305,7 @@ describe('Docs for humans', () => {
     given((p) => {
       p.facts.where = { vercel: true, env: 'preview' };
     });
-    await openHumans();
+    await openMcpDoc();
     const note = screen.getByRole('note');
     expect(note.textContent).toContain('This is a test address, and Vercel guards it.');
     expect(note.textContent).toContain('Protection Bypass for Automation');
@@ -286,7 +325,7 @@ describe('Docs for humans', () => {
     given((p) => {
       p.facts.where = { vercel: true, env: 'production' };
     });
-    await openHumans();
+    await openMcpDoc();
     expect(screen.getByRole('note').textContent).toContain('This address is open.');
     expect(document.body.textContent).not.toContain(SECRET);
   });
@@ -303,7 +342,7 @@ describe('Docs for humans', () => {
       p.facts.logs = { on: true, keep: 77, hours: 11 };
       p.facts.rest.busyMinutes = 13;
     });
-    await openHumans();
+    await openMcpDoc();
     const rows = within(card('2. Limits'))
       .getAllByRole('row')
       .slice(1)
@@ -332,12 +371,12 @@ describe('Docs for humans', () => {
     // The user's own example of a limit, with the real setting: 30 calls a minute.
     cleanup();
     given();
-    await openHumans();
+    await openMcpDoc();
     expect(within(card('2. Limits')).getAllByRole('row')[1]?.textContent).toContain('Calls a minute, for each caller30');
   });
 
   it('explains free, fast and smart, and walks through a search and a page in the order Scrapy uses', async () => {
-    await openHumans();
+    await openMcpDoc();
     const how = card('3. How Scrapy gets an answer');
     // "Fast/Free/Smart", in the words and the order of the request.
     expect(within(how).getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Fast', 'Free', 'Smart', 'A search, step by step', 'A page, step by step', 'Resting and remembering']);
@@ -374,7 +413,7 @@ describe('Docs for humans', () => {
       p.facts.page.off = ['Jina Reader', 'Exa'];
       p.facts.page.own = 'first';
     });
-    await openHumans();
+    await openMcpDoc();
     const how = card('3. How Scrapy gets an answer');
     const searchSteps = within(within(how).getByRole('list', { name: 'A search, step by step' })).getAllByRole('listitem');
     expect([...(searchSteps[1] as HTMLElement).querySelectorAll('.chip')].map((c) => c.textContent)).toEqual(['Exa', 'Firecrawl']);
@@ -387,7 +426,7 @@ describe('Docs for humans', () => {
   });
 
   it('explains one line of the live feed, the kinds of method, and what to look for', async () => {
-    await openHumans();
+    await openMcpDoc();
     const logs = card('4. How to read the logs');
     // The example line is the user's own example of a call.
     expect(logs.querySelector('.anatomy')?.getAttribute('aria-label')).toContain('11:45:02 AM, search_web, how to fix hydration error');
@@ -405,12 +444,12 @@ describe('Docs for humans', () => {
     given((p) => {
       p.facts.logs.on = false;
     });
-    await openHumans();
+    await openMcpDoc();
     expect(card('4. How to read the logs').textContent).toContain('The log is off at this address, so the Live feed stays empty here.');
   });
 
   it('points to the page for the AI', async () => {
-    await openHumans();
+    await openMcpDoc();
     expect(screen.getByRole('link', { name: 'For the AI' }).getAttribute('href')).toBe('#docs-ai');
   });
 });
@@ -479,7 +518,8 @@ describe('Docs for the AI', () => {
       p.facts.where = { vercel: true, env: 'preview' };
     });
     await openAi();
-    expect(card('How your AI gets these rules').textContent).toContain('At this test address Vercel asks for a login first, so an AI can open /llms.txt only with the secret header');
+    expect(card('How your AI gets these rules').textContent).toContain('At this test address Vercel asks for a login first, so an AI can open /llms.txt only with the secret header that the MCP doc describes.');
+    expect(document.body.textContent).not.toMatch(/for humans/i);
   });
 
   it('shows, word for word, what every AI is told when it connects', async () => {
@@ -564,15 +604,15 @@ describe('Docs for the AI', () => {
     expect(within(section).getByLabelText('The rulebook for AI agents').textContent).toContain(`MCP address: ${ADDRESS}`);
   });
 
-  it('points to the page for humans', async () => {
+  it('points to the MCP doc', async () => {
     await openAi();
-    expect(screen.getByRole('link', { name: 'For humans' }).getAttribute('href')).toBe('#docs-humans');
+    expect(screen.getByRole('link', { name: 'MCP doc' }).getAttribute('href')).toBe('#mcp-doc');
   });
 });
 
 describe('the address part of the dashboard', () => {
   it('points to the docs for where to put the address', async () => {
     await open('#address', 'The address for your agent');
-    expect(screen.getByRole('link', { name: 'For humans' }).getAttribute('href')).toBe('#docs-humans');
+    expect(screen.getByRole('link', { name: 'MCP doc' }).getAttribute('href')).toBe('#mcp-doc');
   });
 });

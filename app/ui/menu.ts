@@ -58,9 +58,8 @@ export const MENU = [
     title: 'Docs',
     items: [
       {
-        id: 'docs-humans',
-        label: 'For humans',
-        title: 'Docs for humans',
+        id: 'mcp-doc',
+        label: 'MCP doc',
         about: 'How to connect your AI, the limits, how Scrapy gets an answer, and how to read the logs.',
       },
       {
@@ -84,12 +83,23 @@ export function menuItem(id: ViewId): MenuItem {
   return ITEMS.find((item) => item.id === id) ?? MENU[0].items[0];
 }
 
-/** Other names for a part, so that an obvious address works too: "#docs" opens the first page of the docs. */
-const ALSO: Record<string, ViewId> = { docs: 'docs-humans' };
+/**
+ * Other names for a part. "#docs" is the obvious address of the docs, so it opens their first page.
+ * "#docs-humans" is what the MCP doc was called at first: a link saved then still works.
+ */
+const ALSO: ReadonlyMap<string, ViewId> = new Map<string, ViewId>([
+  ['docs', 'mcp-doc'],
+  ['docs-humans', 'mcp-doc'],
+]);
 
 /** Which part an address like "#try" names. Anything unknown means the first part. */
 export function viewFromHash(hash: string): ViewId {
   const id = hash.replace(/^#/, '');
   const found = ITEMS.find((item) => item.id === id);
-  return found ? (found.id as ViewId) : (ALSO[id] ?? FIRST_VIEW);
+  return found ? (found.id as ViewId) : (ALSO.get(id) ?? FIRST_VIEW);
+}
+
+/** True when an address names a part by another name than its own, like "#docs". */
+export function isOtherName(hash: string): boolean {
+  return ALSO.has(hash.replace(/^#/, ''));
 }

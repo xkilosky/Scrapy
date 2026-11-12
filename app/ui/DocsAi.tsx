@@ -124,7 +124,7 @@ export function DocsAi({ docs, origin, failed, onRetry }: { docs: DocsPayload | 
           </li>
           <li>
             <strong>As text you give it.</strong> If your AI still guesses, paste the rulebook into its own instructions (its system prompt), or let it read <a href="/llms.txt">/llms.txt</a>.
-            {guarded && ' At this test address Vercel asks for a login first, so an AI can open /llms.txt only with the secret header that the page For humans describes. Pasting works without it.'}
+            {guarded && ' At this test address Vercel asks for a login first, so an AI can open /llms.txt only with the secret header that the MCP doc describes. Pasting works without it.'}
             <div className="row" style={{ marginTop: 10 }}>
               <CopyButton text={rulebook} label="Copy the rulebook" className="primary" />
               <a className="button" href="/llms.txt" target="_blank" rel="noreferrer">
@@ -198,7 +198,7 @@ export function DocsAi({ docs, origin, failed, onRetry }: { docs: DocsPayload | 
       </section>
 
       <p className="soft small doc-foot">
-        How to connect your AI, and the limits, are on the page <a href="#docs-humans">For humans</a>.
+        How to connect your AI, and the limits, are in the <a href="#mcp-doc">MCP doc</a>.
       </p>
     </>
   );

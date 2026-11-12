@@ -9,8 +9,8 @@
  * - "The address for your agent" is what an agent connects to.
  * - "Try a tool" runs a tool exactly as an agent would and shows the answer.
  * The second section, "Logs", has the live feed of tool calls (ui/LogsView.tsx).
- * The third, "Docs", has a page for people (ui/DocsHumans.tsx) and the
- * rulebook for agents (ui/DocsAi.tsx).
+ * The third, "Docs", has the MCP doc for the person who connects an AI
+ * (ui/McpDoc.tsx) and the rulebook for agents (ui/DocsAi.tsx).
  *
  * One part shows at a time. Its name is in the page address ("#try"), so the
  * back button works and a part can be linked to. What was typed or checked in
@@ -20,10 +20,10 @@ import { useEffect, useState } from 'react';
 import type { DocsPayload } from '@/lib/docs';
 import { CopyButton } from './ui/CopyButton';
 import { DocsAi } from './ui/DocsAi';
-import { DocsHumans, type ClientId } from './ui/DocsHumans';
+import { McpDoc, type ClientId } from './ui/McpDoc';
 import { Drawer } from './ui/Drawer';
 import { LogsView } from './ui/LogsView';
-import { FIRST_VIEW, MENU, menuItem, viewFromHash, type MenuItem, type ViewId } from './ui/menu';
+import { FIRST_VIEW, MENU, isOtherName, menuItem, viewFromHash, type MenuItem, type ViewId } from './ui/menu';
 
 interface Status {
   version: string;
@@ -192,9 +192,15 @@ export default function CheckPage() {
 
   // The part that shows follows the page address: "#try" shows "Try a tool".
   useEffect(() => {
-    setView(viewFromHash(window.location.hash));
+    const show = () => {
+      const named = viewFromHash(window.location.hash);
+      setView(named);
+      // Another name for a part ("#docs") is swapped for the part's own address. No step is added to the history.
+      if (isOtherName(window.location.hash)) window.history.replaceState(window.history.state, '', `#${named}`);
+    };
+    show();
     const follow = () => {
-      setView(viewFromHash(window.location.hash));
+      show();
       // A newly chosen part starts at its top, not where the last one was scrolled to.
       window.scrollTo(0, 0);
     };
@@ -203,7 +209,7 @@ export default function CheckPage() {
   }, []);
 
   // The docs are read from Scrapy the first time one of their pages is opened.
-  const wantsDocs = view === 'docs-humans' || view === 'docs-ai';
+  const wantsDocs = view === 'mcp-doc' || view === 'docs-ai';
   const hasDocs = docs !== null;
   useEffect(() => {
     if (!wantsDocs || hasDocs) return undefined;
@@ -317,7 +323,7 @@ export default function CheckPage() {
         <h1>{showing.title ?? showing.label}</h1>
         <p className="lead">{showing.about}</p>
 
-        {view === 'docs-humans' && <DocsHumans docs={docs} origin={origin} failed={docsFailed} onRetry={() => setDocsTry((t) => t + 1)} client={docsClient} onClient={setDocsClient} />}
+        {view === 'mcp-doc' && <McpDoc docs={docs} origin={origin} failed={docsFailed} onRetry={() => setDocsTry((t) => t + 1)} client={docsClient} onClient={setDocsClient} />}
         {view === 'docs-ai' && <DocsAi docs={docs} origin={origin} failed={docsFailed} onRetry={() => setDocsTry((t) => t + 1)} />}
 
         {/* Always there, so that the feed keeps its calls and its unfolded cards while another part shows. It only asks for news while it shows. */}
@@ -462,7 +468,7 @@ export default function CheckPage() {
               </p>
             )}
             <p className="soft" style={{ marginTop: 12, marginBottom: 0 }}>
-              Where to put this address in your AI app is in the docs: <a href="#docs-humans">For humans</a>.
+              Where to put this address in your AI app is in the <a href="#mcp-doc">MCP doc</a>.
             </p>
           </section>
         )}

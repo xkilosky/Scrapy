@@ -52,9 +52,9 @@ For an agent that only supports local MCP servers:
 }
 ```
 
-Scrapy's own page has this ready to copy, with its real address filled in, for Cursor, Claude Code, VS Code, local-only apps and your own code: menu, Docs, For humans.
+Scrapy's own page has this ready to copy, with its real address filled in, for Cursor, Claude Code, VS Code, local-only apps and your own code: menu, Docs, MCP doc.
 
-A Vercel test address is behind Vercel's login, and an agent cannot log in. To let one in, create a secret in the Vercel project (Settings, Deployment Protection, "Protection Bypass for Automation") and have the agent send it with every request in the header `x-vercel-protection-bypass`. At a test address the Docs page adds that header to every example.
+A Vercel test address is behind Vercel's login, and an agent cannot log in. To let one in, create a secret in the Vercel project (Settings, Deployment Protection, "Protection Bypass for Automation") and have the agent send it with every request in the header `x-vercel-protection-bypass`. At a test address the MCP doc adds that header to every example.
 
 ## How it works
 
@@ -119,9 +119,9 @@ The menu button at the top left opens a drawer with sections. The first section,
 2. **The address for your agent** shows the MCP address to copy, the tools that are ready, and the limits.
 3. **Try a tool** runs `search_web` or `fetch_url` exactly as an agent would and shows the answer the agent gets.
 
-The second section, **Logs**, has one part: the **Live feed** of tool calls. The third section, **Docs**, has two: **For humans** and **For the AI**. Both sections are described below.
+The second section, **Logs**, has one part: the **Live feed** of tool calls. The third section, **Docs**, has two: **MCP doc** and **For the AI**. Both sections are described below.
 
-One part shows at a time. Each has its own link (`#checks`, `#address`, `#try`, `#logs`, `#docs-humans`, `#docs-ai`), the back button goes to the part before, and what you typed or checked in one part is still there when you come back to it.
+One part shows at a time. Each has its own link (`#checks`, `#address`, `#try`, `#logs`, `#mcp-doc`, `#docs-ai`), the back button goes to the part before, and what you typed or checked in one part is still there when you come back to it.
 
 The drawer closes with its close button, with the Escape key, with a click outside it, or when a part is chosen. At an address where Scrapy is closed there is no menu, only the notice.
 
@@ -161,7 +161,7 @@ A line unfolds into a card:
 
 Two pages, for two readers.
 
-**For humans** is for the person who connects an AI to Scrapy. It has four parts: how to connect (the address, and where it goes in each kind of AI app), the limits, how Scrapy gets an answer (the fast, free, smart fallback, step by step, for a search and for a page), and how to read the live feed.
+**MCP doc** is for the person who connects an AI to Scrapy. It has four parts: how to connect (the address, and where it goes in each kind of AI app), the limits, how Scrapy gets an answer (the fast, free, smart fallback, step by step, for a search and for a page), and how to read the live feed.
 
 **For the AI** is the rulebook an agent follows: which tool to use, the exact parameters of each tool with their types, limits and defaults, examples of what to send, what the answer looks like, and what to do after each kind of failure.
 
