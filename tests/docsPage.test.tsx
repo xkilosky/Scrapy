@@ -529,7 +529,7 @@ describe('Docs for the AI', () => {
     await openAi();
     const first = card('What every AI is told when it connects');
     expect(first.querySelector('blockquote')?.textContent).toBe(payload.instructions);
-    expect(first.textContent).toContain('Then it gets the 2 tools below: search_web and fetch_url.');
+    expect(first.textContent).toContain('Then it gets the 6 tools below: search_web and fetch_url and web_deep_fetch and git_search and fetch_git and fetch_git_deep.');
   });
 
   it('lists the exact parameters of each tool, as the tool itself defines them', async () => {

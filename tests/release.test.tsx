@@ -841,7 +841,7 @@ describe('the home page', () => {
     expect(shown()).toContain('Release G - 1.0');
     expect(screen.getByRole('heading', { level: 3, name: 'Search the web' })).toBeTruthy();
     expect(screen.getByRole('heading', { level: 3, name: 'Read a web page' })).toBeTruthy();
-    expect(shown()).toContain('These 2 tools are ready in release G - 1.0. Coming next: extract_text, extract_images, extract_design, deep_crawl, crawl_status.');
+    expect(shown()).toContain('These 6 tools are ready in release G - 1.0. Coming next: extract_text, extract_images, extract_design, background_deep_crawl, crawl_status.');
     // Numbers come from the running Scrapy, as on the docs pages.
     const f = docsPayload().facts;
     expect(shown()).toContain(`Your AI gets ${f.search.defaultResults} links, or up to ${f.search.maxResults} when it asks for more.`);

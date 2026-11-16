@@ -68,7 +68,7 @@ export const FAILURES: Record<Reason, FailureAdvice> = {
     then: 'Call again once. If it fails again, use another page or other search words.',
   },
   failed: {
-    starts: ['The free search services could not be reached', 'The free services that load pages could not be reached', 'Could not load this page', 'Something went wrong inside Scrapy'],
+    starts: ['The free search services could not be reached', 'The free services that load pages could not be reached', 'Could not load this page', 'Could not crawl this site', 'GitHub answered', 'GitHub returned unreadable data', 'Something went wrong inside Scrapy'],
     means: 'A passing problem on the way to the page, or inside Scrapy.',
     then: 'Call again once, after about a minute. If it fails again, tell the user.',
   },
@@ -78,7 +78,7 @@ export const FAILURES: Record<Reason, FailureAdvice> = {
     then: 'Wait as long as the sentence says, then call again.',
   },
   busy: {
-    starts: ['The free search services are busy', 'The free services that load pages are busy'],
+    starts: ['The free search services are busy', 'The free services that load pages are busy', 'GitHub is busy or its free search allowance is used up'],
     means: 'The free services Scrapy relies on have had enough for now.',
     then: 'Do not call the same tool again before the time in the sentence. Work with what you already have, or tell the user.',
   },
