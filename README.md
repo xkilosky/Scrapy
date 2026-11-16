@@ -6,7 +6,7 @@ People do not use Scrapy directly. An AI agent does, for example to find out how
 
 Scrapy is **personal**: give it one password of your own and it answers only to you. There are no users and no accounts. See [Personal, open or closed](#personal-open-or-closed).
 
-**Status:** release G - 1.0 (version 1.0.0). Six tools are ready: `search_web`, `fetch_url`, `web_deep_fetch`, `git_search`, `fetch_git` and `fetch_git_deep`. Scrapy has a home page, a login, a dashboard and docs. The full plan is in [PLAN.md](PLAN.md).
+**Status:** release G - 2.0 (version 2.0.0). Six tools are ready: `search_web`, `fetch_url`, `web_deep_fetch`, `git_search`, `fetch_git` and `fetch_git_deep`. Scrapy has a home page, a login, a dashboard and docs. The full plan is in [PLAN.md](PLAN.md).
 
 ## The tools
 

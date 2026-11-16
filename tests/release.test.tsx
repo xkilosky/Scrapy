@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Release G - 1.0, in a browser-like environment: the home page, the login,
+ * Release G - 2.0, in a browser-like environment: the home page, the login,
  * the dashboard of a personal Scrapy, and the docs for everybody.
  *
  * A test environment cannot leave a page. So the two functions that do it
@@ -49,8 +49,8 @@ const ADDRESS = `${ORIGIN}/api/mcp`;
 
 const OPEN = {
   name: 'scrapy',
-  version: '1.0.0',
-  release: 'G - 1.0',
+  version: '2.0.0',
+  release: 'G - 2.0',
   access: 'open',
   allowed: true,
   open: true,
@@ -66,8 +66,8 @@ const OPEN = {
 /** What the owner of a personal Scrapy is told, logged in. */
 const OWNER = { ...OPEN, access: 'personal', key: KEY };
 /** What everybody else is told there. */
-const STRANGER = { name: 'scrapy', version: '1.0.0', release: 'G - 1.0', access: 'personal', open: true, allowed: false, message: 'This Scrapy is personal. Log in to use it.' };
-const CLOSED = { name: 'scrapy', version: '1.0.0', release: 'G - 1.0', access: 'closed', open: false, allowed: false, message: 'Scrapy is closed at this address. Its owner has not opened it yet.' };
+const STRANGER = { name: 'scrapy', version: '2.0.0', release: 'G - 2.0', access: 'personal', open: true, allowed: false, message: 'This Scrapy is personal. Log in to use it.' };
+const CLOSED = { name: 'scrapy', version: '2.0.0', release: 'G - 2.0', access: 'closed', open: false, allowed: false, message: 'Scrapy is closed at this address. Its owner has not opened it yet.' };
 const LOG_IN_FIRST = { ok: false, login: true, text: 'This Scrapy is personal. Log in to use it.', error: 'This Scrapy is personal. Log in to use it.' };
 const EMPTY_FEED = { open: true, on: true, rev: '0', entries: [], keep: 100, hours: 24, where: 'memory' };
 
@@ -306,7 +306,7 @@ describe('the dashboard of a personal Scrapy: logging out', () => {
     await u.click(screen.getByRole('button', { name: 'Open menu' }));
     const menu = screen.getByRole('dialog', { name: 'Menu' });
     expect(await within(menu).findByRole('button', { name: 'Log out' })).toBeTruthy();
-    expect(within(menu).getByText('Scrapy G - 1.0')).toBeTruthy();
+    expect(within(menu).getByText('Scrapy G - 2.0')).toBeTruthy();
   });
 
   it('takes the pass back and leaves for the home page', async () => {
@@ -339,7 +339,7 @@ describe('the dashboard of a personal Scrapy: logging out', () => {
     const u = user();
     await u.click(screen.getByRole('button', { name: 'Open menu' }));
     const menu = screen.getByRole('dialog', { name: 'Menu' });
-    expect(await within(menu).findByText('Scrapy G - 1.0')).toBeTruthy();
+    expect(await within(menu).findByText('Scrapy G - 2.0')).toBeTruthy();
     expect(within(menu).queryByRole('button', { name: 'Log out' })).toBeNull();
   });
 });
@@ -491,7 +491,7 @@ describe('the docs page, for everybody', () => {
     expect(linkTo('Scrapy')).toBe('/');
     // Only what everybody may read was asked for.
     expect([...new Set(asked.map((a) => a.url))].sort()).toEqual(['/api/docs', '/api/status']);
-    expect(shown()).toContain('Scrapy G - 1.0. These docs are open to everyone.');
+    expect(shown()).toContain('Scrapy G - 2.0. These docs are open to everyone.');
   });
 
   it('gives a stranger the examples with YOUR_KEY, copied as they are shown', async () => {
@@ -838,10 +838,10 @@ describe('the home page', () => {
   it('says what Scrapy is, names the release, and quotes the running Scrapy', async () => {
     await home();
     expect(screen.getByRole('heading', { level: 1, name: 'The web, for your AI.' })).toBeTruthy();
-    expect(shown()).toContain('Release G - 1.0');
+    expect(shown()).toContain('Release G - 2.0');
     expect(screen.getByRole('heading', { level: 3, name: 'Search the web' })).toBeTruthy();
     expect(screen.getByRole('heading', { level: 3, name: 'Read a web page' })).toBeTruthy();
-    expect(shown()).toContain('These 6 tools are ready in release G - 1.0. Coming next: extract_text, extract_images, extract_design, background_deep_crawl, crawl_status.');
+    expect(shown()).toContain('These 6 tools are ready in release G - 2.0. Coming next: extract_text, extract_images, extract_design, background_deep_crawl, crawl_status.');
     // Numbers come from the running Scrapy, as on the docs pages.
     const f = docsPayload().facts;
     expect(shown()).toContain(`Your AI gets ${f.search.defaultResults} links, or up to ${f.search.maxResults} when it asks for more.`);

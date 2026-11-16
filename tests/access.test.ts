@@ -123,7 +123,7 @@ describe('closed', () => {
     expect((await logs(get('/api/logs'))).status).toBe(403);
 
     const info = (await (await status(get('/api/status'))).json()) as Record<string, unknown>;
-    expect(info).toEqual({ name: 'scrapy', version: '1.0.0', release: 'G - 1.0', access: 'closed', open: false, allowed: false, message: CLOSED_TEXT });
+    expect(info).toEqual({ name: 'scrapy', version: '2.0.0', release: 'G - 2.0', access: 'closed', open: false, allowed: false, message: CLOSED_TEXT });
 
     expect(contacted).toEqual([]);
   });
@@ -165,15 +165,15 @@ describe('open', () => {
     expect(payload.addressLine).toBe('MCP address: {address} (Streamable HTTP, no key needed).');
     expect(payload.facts.access).toBe('open');
     expect(payload.facts.limits.perMinute).toBe(30);
-    expect(payload.release).toBe('G - 1.0');
-    expect(payload.version).toBe('1.0.0');
+    expect(payload.release).toBe('G - 2.0');
+    expect(payload.version).toBe('2.0.0');
   });
 
   it('answers everybody who gets there, with no key and no login', async () => {
     process.env.VERCEL_ENV = 'production';
     process.env.SCRAPY_OPEN = '1';
     const info = (await (await status(get('/api/status'))).json()) as Record<string, unknown>;
-    expect(info).toMatchObject({ access: 'open', open: true, allowed: true, mode: 'safe', release: 'G - 1.0' });
+    expect(info).toMatchObject({ access: 'open', open: true, allowed: true, mode: 'safe', release: 'G - 2.0' });
     // There is no key where there is no password.
     expect('key' in info).toBe(false);
     const tried = await tryTool(post('/api/try', READ_LOCAL));
@@ -317,7 +317,7 @@ describe('personal: what everybody may see', () => {
     process.env.SCRAPY_PASSWORD = PASSWORD;
     const answer = await status(get('/api/status'));
     expect(answer.headers.get('cache-control')).toBe('no-store');
-    expect(await answer.json()).toEqual({ name: 'scrapy', version: '1.0.0', release: 'G - 1.0', access: 'personal', open: true, allowed: false, message: LOGIN_TEXT });
+    expect(await answer.json()).toEqual({ name: 'scrapy', version: '2.0.0', release: 'G - 2.0', access: 'personal', open: true, allowed: false, message: LOGIN_TEXT });
     // The key of an agent does not open it either.
     expect(await (await status(get('/api/status', withKey()))).json()).toMatchObject({ allowed: false });
     expect(JSON.stringify(await (await status(get('/api/status', withKey()))).json())).not.toContain('scrapy_');

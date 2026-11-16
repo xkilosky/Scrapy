@@ -1,8 +1,10 @@
 # Scrapy: the plan (version 2)
 
-Status: stage 1 of 4 is built and checked on Vercel, in the safe position. One check is left, and it needs you: see the stage 1 report below. Written 2026-11-11.
+**Current release: G - 2.0 (version 2.0.0).** Six MCP tools are ready: web search, page reading, bounded website crawling, GitHub repository and issue search, repository metadata/README/tree, and single source-file reading. It has a home page, a login, a dashboard and docs. Scrapy remains personal/open/closed by setting, with no users, accounts or database. See [README.md](README.md) for the live feature list.
 
-**Release G - 1.0 (2026-11-12).** Scrapy is personal now: you said "No users no accounts Only for myself personal". It has a home page, a login with one password of your own, a dashboard and docs. What that means, and what it needs from you, is under [Access](#access).
+**Release G - 1.0 (2026-11-12).** Scrapy became personal: you said "No users no accounts Only for myself personal". It has a home page, a login with one password of your own, a dashboard and docs. What that means, and what it needs from you, is under [Access](#access).
+
+The earlier stage reports below record what was true when they were written; current release status is above.
 
 Version 1 needed two outside accounts and their keys. You answered "We need totally Free no Key Scrapy" and "The best". This version needs no new account, no key and no payment.
 

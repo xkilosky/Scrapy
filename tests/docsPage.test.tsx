@@ -17,8 +17,8 @@ import { docsPayload, type DocsPayload } from '@/lib/docs';
 
 const STATUS = {
   name: 'scrapy',
-  version: '1.0.0',
-  release: 'G - 1.0',
+  version: '2.0.0',
+  release: 'G - 2.0',
   access: 'open',
   allowed: true,
   open: true,
