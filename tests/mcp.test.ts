@@ -268,7 +268,7 @@ describe("Scrapy's MCP address", () => {
     expect(client.getServerVersion()).toMatchObject({ name: 'scrapy' });
     expect(client.getInstructions()).toMatch(/search_web/);
     const { tools } = await client.listTools();
-    expect(tools.map((t) => t.name)).toEqual(['search_web', 'fetch_url']);
+    expect(tools.map((t) => t.name)).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep']);
     const search = tools.find((t) => t.name === 'search_web');
     expect(search?.inputSchema.required).toEqual(['query']);
     expect(Object.keys(search?.inputSchema.properties ?? {})).toEqual(['query', 'max_results', 'include_sites', 'exclude_sites', 'recency']);

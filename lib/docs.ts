@@ -212,6 +212,8 @@ export function rulebook(options: { address?: string } = {}): string {
     '',
     '- You need information and have no link: call `search_web`.',
     '- You have a link and need what the page says: call `fetch_url`.',
+    '- You need to follow links across a site: call `web_deep_fetch`.',
+    '- You need a GitHub project, issue, or code: call `git_search`; for the project README and file list, call `fetch_git`; for one source file, call `fetch_git_deep`.',
     '- Never make up a link. If you have none, call `search_web` first and take a link from its answer.',
     '',
     '## How to call a tool',

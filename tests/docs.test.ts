@@ -436,7 +436,7 @@ describe('the rulebook for agents', () => {
   });
 
   it('is short enough to paste into an instruction, and plain text only', () => {
-    expect(text.length).toBeLessThan(12_000);
+    expect(text.length).toBeLessThan(17_000);
     // Nothing a model cannot read, and nothing that would look like markup to it.
     expect(text).not.toMatch(/<[a-z/]/i);
     expect(text).not.toMatch(/\t/);
@@ -459,15 +459,15 @@ describe('what the docs page is given', () => {
   it('holds everything the two pages show', () => {
     const payload = docsPayload();
     expect(Object.keys(payload)).toEqual(['version', 'release', 'mode', 'instructions', 'rulebookUri', 'rulebook', 'addressLine', 'tools', 'failures', 'facts']);
-    expect(payload.version).toBe('1.0.0');
-    expect(payload.release).toBe('G - 1.0');
+    expect(payload.version).toBe('2.0.0');
+    expect(payload.release).toBe('G - 2.0');
     // The page puts its own address into this line. The rulebook at /llms.txt has the same line.
     expect(payload.addressLine.replace('{address}', 'https://scrapy.example/api/mcp')).toBe(rulebook({ address: 'https://scrapy.example/api/mcp' }).split('\n')[4]);
     expect(payload.facts.access).toBe('open');
     expect(payload.instructions).toBe(SERVER_INSTRUCTIONS);
     expect(payload.rulebook).toBe(rulebook());
     expect(payload.rulebookUri).toBe('scrapy://rulebook');
-    expect(payload.tools.map((t) => t.name)).toEqual(['search_web', 'fetch_url']);
+    expect(payload.tools.map((t) => t.name)).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep']);
     expect(payload.tools[0]?.signature).toContain('query (string, required, 1 to 500 characters); max_results (integer, 1 to 20, default 8)');
     expect(payload.tools[0]?.schema).toEqual(jsonSchemaOf(search.schema));
     // It can be sent as it is.

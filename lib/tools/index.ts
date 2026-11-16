@@ -15,6 +15,8 @@ import { getLogBook, logCall, type LogBook } from '../logs';
 import { Trace, type TraceReport } from '../trace';
 import { mustBe, shapeOf, signatureOf, type JsonProperty } from './describe';
 import { fetchUrl } from './fetchUrl';
+import { webDeepFetch } from './crawlWeb';
+import { fetchGit, fetchGitDeep, gitSearch } from './gitTools';
 import { searchWebTool } from './searchWeb';
 
 export interface ToolExample {
@@ -74,6 +76,27 @@ const fetchSchema = z.strictObject({
     .optional()
     .describe('true reads the page in a real browser. Use it only when a normal call came back empty, or misses content that the page builds with JavaScript. Default false.')
     .meta({ default: false }),
+});
+
+const deepFetchSchema = z.strictObject({
+  url: z.string().min(1).max(2000).describe('The starting public web page. Use a link from search_web or from the user.'),
+  max_pages: z.number().int().min(1).max(100).optional().describe('The most pages to visit: a whole number from 1 to 100. Default 10.').meta({ default: 10 }),
+  same_domain_only: z.boolean().optional().describe('Only follow links on the exact starting host. Default true; set false to follow links off the starting host too.').meta({ default: true }),
+});
+const gitSearchSchema = z.strictObject({
+  query: z.string().min(1).max(300).describe('Words to look for in public GitHub repositories, issues or code.'),
+  type: z.enum(['repositories', 'code', 'issues']).describe('What to search: repositories, code, or issues.'),
+  language: z.string().max(40).optional().describe('Limit to a programming language, for example "typescript" or "python".'),
+});
+const gitRepoSchema = z.strictObject({
+  repo_owner: z.string().min(1).max(100).regex(/^[A-Za-z0-9-]+$/).describe('The GitHub account or organization that owns the repository.'),
+  repo_name: z.string().min(1).max(100).regex(/^[A-Za-z0-9._-]+$/).describe('The repository name, without its owner or a URL.'),
+});
+const gitDeepSchema = z.strictObject({
+  repo_owner: z.string().min(1).max(100).regex(/^[A-Za-z0-9-]+$/).describe('The GitHub account or organization that owns the repository.'),
+  repo_name: z.string().min(1).max(100).regex(/^[A-Za-z0-9._-]+$/).describe('The repository name, without its owner or a URL.'),
+  file_path: z.string().min(1).max(1000).describe('The path of one file inside the repository, for example "src/hooks/useAuth.ts".'),
+  branch: z.string().min(1).max(250).optional().describe('The branch to read. Default main.'),
 });
 
 export const TOOLS: ToolDef[] = [
@@ -155,6 +178,63 @@ export const TOOLS: ToolDef[] = [
     mistake: { link: 'https://react.dev/learn' },
     run: (args: z.infer<typeof fetchSchema>, trace) => fetchUrl(args, trace),
   },
+  {
+    name: 'web_deep_fetch',
+    title: 'Crawl a website',
+    description: 'Start at a public web page and follow its links, breadth first, up to a page limit. By default it stays on the exact same host; it uses Scrapy’s normal safe page reader and returns each page title, address, a short text excerpt and link count.',
+    schema: deepFetchSchema,
+    examples: [
+      { about: 'Crawl a small documentation site.', args: { url: 'https://docs.example.com/', max_pages: 10 } },
+      { about: 'Read up to 25 pages, staying on this host.', args: { url: 'https://react.dev/learn', max_pages: 25, same_domain_only: true } },
+      { about: 'Allow linked pages on other hosts too.', args: { url: 'https://example.com/', max_pages: 5, same_domain_only: false } },
+    ],
+    answer: { sample: 'Crawled 2 pages from https://docs.example.com (same domain only).\\n\\n1. Start here\\n   https://docs.example.com/\\n   4 links found\\n2. Install\\n   https://docs.example.com/install\\n   2 links found', notes: ['Pages are visited breadth first, up to max_pages; the default is 10.', 'Each page includes a plain-text excerpt of up to 900 characters; call fetch_url for the full page.', 'same_domain_only defaults to true and means the exact starting host, including redirects.', 'A page that cannot be read is reported separately; the rest of the crawl continues.'] },
+    mistake: { url: 'https://docs.example.com/', depth: 3 },
+    run: (args: z.infer<typeof deepFetchSchema>, trace) => webDeepFetch(args, trace),
+  },
+  {
+    name: 'git_search',
+    title: 'Search GitHub',
+    description: 'Search public GitHub repositories, issues, or code. Repository and issue search use GitHub’s public API. GitHub requires a login for its code-search API, so code searches use Scrapy’s public web search restricted to github.com instead.',
+    schema: gitSearchSchema,
+    examples: [
+      { about: 'Find repositories for React charts.', args: { query: 'React chart library', type: 'repositories' } },
+      { about: 'Look for a TypeScript chart library.', args: { query: 'chart library', type: 'repositories', language: 'typescript' } },
+      { about: 'Find public issue discussions.', args: { query: 'hydration error', type: 'issues' } },
+      { about: 'Search code in public GitHub pages.', args: { query: 'useAuth hook', type: 'code', language: 'javascript' } },
+    ],
+    answer: { sample: '1,234 repositories found; showing 10.\\n\\n1. org/chart-kit — A small chart library.\\n   https://github.com/org/chart-kit\\n   2,345 stars · TypeScript · MIT', notes: ['Up to 10 matches are returned with a direct GitHub link.', 'Code search uses public web results because GitHub requires authentication for code search; it may return page links rather than exact source matches.', 'A language filter is optional.'] },
+    mistake: { query: 'chart library', type: 'repositories', extra: true },
+    run: (args: z.infer<typeof gitSearchSchema>, trace) => gitSearch(args, trace),
+  },
+  {
+    name: 'fetch_git',
+    title: 'Read a GitHub repository',
+    description: 'Fetch a public GitHub repository’s description, stars, default branch, README, and file tree. Use it after git_search finds a repository, or when the user gives you owner and repository name.',
+    schema: gitRepoSchema,
+    examples: [
+      { about: 'Inspect a repository.', args: { repo_owner: 'vercel', repo_name: 'next.js' } },
+      { about: 'Read a small utility library.', args: { repo_owner: 'sindresorhus', repo_name: 'p-limit' } },
+      { about: 'Read a UI project.', args: { repo_owner: 'facebook', repo_name: 'react' } },
+    ],
+    answer: { sample: 'vercel/next.js — The React Framework.\\nhttps://github.com/vercel/next.js\\nStars: 120,000 · Default branch: canary · License: MIT\\n\\nREADME:\\n# Next.js\\n\\nThe React Framework...\\n\\nFiles (250 of 4,300):\\n- .github/CONTRIBUTING.md\\n- packages/next/package.json', notes: ['The file tree is limited to the first 250 files so the answer stays readable.', 'The README is clipped at 16,000 characters.', 'Only public repositories can be read.'] },
+    mistake: { repo_owner: 'vercel', repo_name: 'next.js', owner: 'vercel' },
+    run: (args: z.infer<typeof gitRepoSchema>, trace) => fetchGit(args, trace),
+  },
+  {
+    name: 'fetch_git_deep',
+    title: 'Read a source file',
+    description: 'Read the actual contents of one file in a public GitHub repository using its contents API. Give the owner, repository, file path, and optionally a branch; the default branch name here is main.',
+    schema: gitDeepSchema,
+    examples: [
+      { about: 'Read a source file from main.', args: { repo_owner: 'vercel', repo_name: 'next.js', file_path: 'packages/next/package.json' } },
+      { about: 'Read a file on a named branch.', args: { repo_owner: 'facebook', repo_name: 'react', file_path: 'packages/react/package.json', branch: 'main' } },
+      { about: 'Inspect a TypeScript hook.', args: { repo_owner: 'tanstack', repo_name: 'query', file_path: 'packages/react-query/src/useQuery.ts' } },
+    ],
+    answer: { sample: 'packages/react-query/src/useQuery.ts (2,048 bytes) — https://github.com/TanStack/query/blob/main/packages/react-query/src/useQuery.ts\\n\\nimport { useBaseQuery } from ...', notes: ['The file contents are clipped at 40,000 characters.', 'The branch defaults to main; repositories with another default branch should pass it explicitly.', 'Only one file is returned per call.'] },
+    mistake: { repo_owner: 'vercel', repo_name: 'next.js', file_path: 'src/index.ts', file: 'src/index.ts' },
+    run: (args: z.infer<typeof gitDeepSchema>, trace) => fetchGitDeep(args, trace),
+  },
 ] as ToolDef[];
 
 /** Where an agent finds the whole rulebook over MCP (see lib/docs.ts). */
@@ -162,7 +242,7 @@ export const RULEBOOK_URI = 'scrapy://rulebook';
 
 /** Told to every agent the moment it connects. Short on purpose: the details are in each tool's own description and parameters. */
 export const SERVER_INSTRUCTIONS =
-  'Scrapy gives you the web. Call search_web to find pages when you have no link, then fetch_url to read one. Never make up a link. ' +
+  'Scrapy gives you the web and GitHub. Call search_web to find pages when you have no link, then fetch_url to read one; call web_deep_fetch to crawl linked pages. Use git_search, fetch_git and fetch_git_deep for public GitHub repositories, discussions and source files. Never make up a link or repository path. ' +
   'Send exactly the parameters each tool lists, and nothing else: a parameter that is not listed is refused. ' +
   'Every tool answers with plain text. When a tool cannot do the job it says why in one sentence ' +
   '(for example "Not found", "Needs a login", "Blocked by the site", or "busy, try again in about 10 minutes") so you know what to do next. ' +

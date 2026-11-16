@@ -1,12 +1,12 @@
 # Scrapy
 
-Web tools for AI agents. An agent connects once, over MCP, and can then search the web and read pages. Scrapy is free to run and needs no account and no paid key anywhere.
+Web and GitHub tools for AI agents. An agent connects once, over MCP, and can search the web, read pages, crawl a site, and inspect public GitHub repositories and source files. Scrapy is free to run and needs no account and no paid key anywhere.
 
 People do not use Scrapy directly. An AI agent does, for example to find out how to fix a bug or to read a documentation page.
 
 Scrapy is **personal**: give it one password of your own and it answers only to you. There are no users and no accounts. See [Personal, open or closed](#personal-open-or-closed).
 
-**Status:** release G - 1.0 (version 1.0.0). `search_web` and `fetch_url` work. Scrapy has a home page, a login, a dashboard and docs. The full plan is in [PLAN.md](PLAN.md).
+**Status:** release G - 2.0 (version 2.0.0). Six tools are ready: `search_web`, `fetch_url`, `web_deep_fetch`, `git_search`, `fetch_git` and `fetch_git_deep`. Scrapy has a home page, a login, a dashboard and docs. The full plan is in [PLAN.md](PLAN.md).
 
 ## The tools
 
@@ -14,10 +14,14 @@ Scrapy is **personal**: give it one password of your own and it answers only to 
 | --- | --- | --- | --- |
 | `search_web` | A question. Optionally: how many results, sites to include or leave out, how recent. | A list of the best links, each with title, link and short description. Duplicates and copycat sites are removed. | Ready |
 | `fetch_url` | A link. Optionally: Markdown or HTML, a focus such as "rate limits", a part number, "use a real browser". | The page's main content only: no menus, ads, pop-ups or cookie banners. Long pages come in numbered parts. | Ready |
+| `web_deep_fetch` | A starting link. Optionally: max_pages (1–100, default 10) and whether to follow links off the starting host. | A breadth-first list of page titles, URLs, link counts and text excerpts (up to 900 characters per page); stays on the exact starting host by default. | Ready |
+| `git_search` | Search words; type: repositories, code, or issues; optional language. | Public GitHub matches. GitHub requires login for its code-search API, so code searches use Scrapy's public web search restricted to github.com. | Ready |
+| `fetch_git` | GitHub owner and repository name. | Repository details, README and up to 250 paths from its file tree. | Ready |
+| `fetch_git_deep` | GitHub owner, repository, path of one file, optional branch. | The actual file contents, clipped at 40,000 characters. | Ready |
 | `extract_text` | A link. | The visible text, grouped by where it sits on the page. | Stage 2 |
 | `extract_images` | A link. | Every image with its address, description and kind. | Stage 2 |
 | `extract_design` | A link. | Colour codes with their use, fonts, text sizes, button styles. | Stage 2 |
-| `deep_crawl` | A start link, a depth, an optional folder, a page limit. | The text of the pages, or a job number for a big crawl. | Stage 3 |
+| `background_deep_crawl` | A start link, depth and a page limit. | A job number for a large crawl, followed by progress and results. | Stage 3 |
 | `crawl_status` | The job number. | Progress, then the pages. | Stage 3 |
 
 When a tool cannot do its job, it answers with one plain sentence that says why: "Not found", "Needs a login", "Blocked by the site", "Took too long", or "The free services are busy. Try again in about 10 minutes."

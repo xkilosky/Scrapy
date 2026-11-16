@@ -70,7 +70,7 @@ beforeEach(() => {
       const url = String(input);
       server.asked.push(url);
       if (url === '/api/status') {
-        return Response.json({ name: 'scrapy', version: '1.0.0', release: 'G - 1.0', access: 'open', allowed: true, open: true, mode: 'safe', tools: [], limits: { visitorPerMinute: 30, dailyCalls: 1500 }, usage: { today: 0 }, where: { vercel: false, env: null, region: null } });
+        return Response.json({ name: 'scrapy', version: '2.0.0', release: 'G - 2.0', access: 'open', allowed: true, open: true, mode: 'safe', tools: [], limits: { visitorPerMinute: 30, dailyCalls: 1500 }, usage: { today: 0 }, where: { vercel: false, env: null, region: null } });
       }
       if (!url.startsWith('/api/logs')) return new Response('not found', { status: 404 });
       if (server.mode === 'down') throw new TypeError('fetch failed');

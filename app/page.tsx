@@ -69,10 +69,14 @@ function toolText(name: string, f: ReturnType<typeof facts>): string {
   if (name === 'fetch_url') {
     return `Loads a public page, in a real browser when the page needs one, and hands back its content as clean Markdown: no menus, no ads, no cookie banners. A long page comes in parts of about ${n(f.page.partChars)} characters.`;
   }
+  if (name === 'web_deep_fetch') return 'Follows links from a starting page and lists the pages it finds, up to 100. Stays on the same host by default.';
+  if (name === 'git_search') return 'Searches public GitHub repositories and issues, and searches public GitHub pages for code.';
+  if (name === 'fetch_git') return 'Reads a public GitHub repository’s description, stars, README and file list.';
+  if (name === 'fetch_git_deep') return 'Reads the actual contents of one file in a public GitHub repository.';
   return '';
 }
 
-const COMING = ['extract_text', 'extract_images', 'extract_design', 'deep_crawl', 'crawl_status'];
+const COMING = ['extract_text', 'extract_images', 'extract_design', 'background_deep_crawl', 'crawl_status'];
 
 export default async function HomePage() {
   const who = await viewer();
@@ -101,7 +105,7 @@ export default async function HomePage() {
           <p className="eyebrow">Release {RELEASE}</p>
           <h1 id="hero-title">The web, for your AI.</h1>
           <p className="hero-lead">
-            An AI agent cannot search the web or open a page on its own. Scrapy gives it both. The agent connects once, over MCP, and gets the tools. Scrapy is free to run and needs no account anywhere.
+            An AI agent cannot search the web, open pages, crawl a site or inspect GitHub source on its own. Scrapy gives it those tools. The agent connects once, over MCP, and gets them all. Scrapy is free to run and needs no account anywhere.
           </p>
           <div className="row cta">
             {enter && (

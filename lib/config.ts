@@ -7,9 +7,9 @@
  */
 
 /** The version as programs want it: in package.json, in the MCP handshake, and in the name Scrapy gives itself. */
-export const VERSION = '1.0.0';
+export const VERSION = '2.0.0';
 /** The name of the release, as people see it. */
-export const RELEASE = 'G - 1.0';
+export const RELEASE = 'G - 2.0';
 export const REPO_URL = 'https://github.com/xkilosky/Scrapy';
 
 /** How Scrapy names itself to every service and site it talks to. */

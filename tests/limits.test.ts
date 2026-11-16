@@ -3,7 +3,7 @@ import { ScrapyError } from '../lib/errors';
 import { createHealth } from '../lib/health';
 import { createLimiter, visitorOf } from '../lib/limits';
 import { createMemoryStore, keyOf } from '../lib/store';
-import { runTool } from '../lib/tools';
+import { runTool, TOOLS } from '../lib/tools';
 
 afterEach(() => {
   delete process.env.SCRAPY_VISITOR_PER_MINUTE;
@@ -70,7 +70,7 @@ describe('runTool', () => {
     expect(bad).toMatchObject({ ok: false, reason: 'bad_input' });
     expect(bad.text).toMatch(/^The input for search_web is not right\. "max_results" is 500\. It must be: integer, 1 to 20\. Parameters of search_web: query \(/);
     const unknown = await runTool('nope', {}, 'v', { limiter });
-    expect(unknown.text).toBe('There is no tool called "nope". The tools are: search_web, fetch_url.');
+    expect(unknown.text).toBe(`There is no tool called "nope". The tools are: ${TOOLS.map((tool) => tool.name).join(', ')}.`);
   });
 });
 

@@ -12,8 +12,8 @@ import { MENU, viewFromHash } from '@/app/ui/menu';
 
 const STATUS = {
   name: 'scrapy',
-  version: '1.0.0',
-  release: 'G - 1.0',
+  version: '2.0.0',
+  release: 'G - 2.0',
   access: 'open',
   allowed: true,
   open: true,
@@ -29,7 +29,7 @@ const STATUS = {
 
 const REPORT = {
   at: '2026-11-11T20:00:00.000Z',
-  version: '1.0.0',
+  version: '2.0.0',
   mode: 'safe',
   region: 'iad1',
   helpers: [
@@ -145,7 +145,7 @@ describe('the dashboard', () => {
     expect(document.body.style.overflow).toBe('hidden');
     expect(document.querySelector('main')?.hasAttribute('inert')).toBe(true);
     // The release, by the name people know it by.
-    expect(await within(menu).findByText('Scrapy G - 1.0')).toBeTruthy();
+    expect(await within(menu).findByText('Scrapy G - 2.0')).toBeTruthy();
     // No password here, so nothing to log out of.
     expect(within(menu).queryByRole('button', { name: 'Log out' })).toBeNull();
   });
@@ -315,7 +315,7 @@ describe('the dashboard', () => {
   });
 
   it('shows no menu at an address where Scrapy is closed', async () => {
-    standIns({ status: { name: 'scrapy', version: '1.0.0', release: 'G - 1.0', access: 'closed', open: false, allowed: false, message: 'Scrapy is closed at this address. Its owner has not opened it yet.' } });
+    standIns({ status: { name: 'scrapy', version: '2.0.0', release: 'G - 2.0', access: 'closed', open: false, allowed: false, message: 'Scrapy is closed at this address. Its owner has not opened it yet.' } });
     render(<Console />);
     expect(await screen.findByRole('heading', { name: 'This address is closed' })).toBeTruthy();
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Open menu' })).toBeNull());
