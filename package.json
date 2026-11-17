@@ -20,6 +20,8 @@
     "@modelcontextprotocol/client": "^2.4.0",
     "@modelcontextprotocol/server": "^2.4.0",
     "@mozilla/readability": "^0.6.0",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.119.0",
     "@vercel/functions": "^3.11.1",
     "linkedom": "^0.18.15",
     "mcp-handler": "^2.3.1",

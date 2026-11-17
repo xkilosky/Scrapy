@@ -26,6 +26,7 @@ function listOf(items: string[]): string {
 /** The way in, for the top bar and for the big button. null where there is none. */
 function wayIn(who: Viewer): { href: string; label: string } | null {
   if (who.state === 'closed' || who.locked) return null;
+  if (who.state === 'accounts') return who.loggedIn ? { href: '/dashboard', label: 'Manage API keys' } : { href: '/signup', label: 'Create an account' };
   if (who.state === 'open' || who.loggedIn) return { href: '/dashboard', label: 'Open the dashboard' };
   return { href: '/login', label: 'Log in' };
 }
@@ -44,6 +45,13 @@ function AccessNote({ who }: { who: Viewer }) {
     return (
       <p className="hero-note">
         <strong>Nobody can log in right now.</strong> The password set for this Scrapy is too short. If this is your Scrapy: set one of at least {PASSWORD_MIN} characters, in the setting <code>SCRAPY_PASSWORD</code>.
+      </p>
+    );
+  }
+  if (who.state === 'accounts') {
+    return (
+      <p className="hero-note">
+        Create an account to get your own API keys. Each key has a 30-call-per-minute and 500-call-per-day allowance; the instance-wide daily ceiling still applies.
       </p>
     );
   }
@@ -73,6 +81,9 @@ function toolText(name: string, f: ReturnType<typeof facts>): string {
   if (name === 'git_search') return 'Searches public GitHub repositories and issues, and searches public GitHub pages for code.';
   if (name === 'fetch_git') return 'Reads a public GitHub repository’s description, stars, README and file list.';
   if (name === 'fetch_git_deep') return 'Reads the actual contents of one file in a public GitHub repository.';
+  if (name === 'image_shot_url') return 'Captures a public web page and returns the actual screenshot image.';
+  if (name === 'extract_images_url') return 'Finds image links and available alt text and dimensions on a public page.';
+  if (name === 'extract_image_url') return 'Fetches one public image and returns its actual image content.';
   return '';
 }
 
@@ -94,7 +105,7 @@ export default async function HomePage() {
           <a href="/docs">Docs</a>
           {enter && (
             <a className="button small" href={enter.href}>
-              {who.state === 'personal' && !who.loggedIn ? 'Log in' : 'Dashboard'}
+              {enter.label}
             </a>
           )}
         </nav>
@@ -105,7 +116,7 @@ export default async function HomePage() {
           <p className="eyebrow">Release {RELEASE}</p>
           <h1 id="hero-title">The web, for your AI.</h1>
           <p className="hero-lead">
-            An AI agent cannot search the web, open pages, crawl a site or inspect GitHub source on its own. Scrapy gives it those tools. The agent connects once, over MCP, and gets them all. Scrapy is free to run and needs no account anywhere.
+            An AI agent cannot search the web, open pages, crawl a site or inspect GitHub source on its own. Scrapy gives it those tools. The agent connects once, over MCP, and gets them all. By default, Scrapy needs no user account or paid helper key; account mode is optional.
           </p>
           <div className="row cta">
             {enter && (

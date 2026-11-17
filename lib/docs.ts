@@ -17,7 +17,7 @@
  * numbers from lib/config.ts, and the list of failures from lib/errors.ts.
  */
 import { access, type Access } from './access';
-import { getMode, limits, LOGS, logsOn, onVercel, PAGE, pageOrder, RELEASE, REST, SEARCH, searchOrder, switchedOff, VERSION, type Mode } from './config';
+import { API_KEY_LIMITS, getMode, limits, LOGS, logsOn, onVercel, PAGE, pageOrder, RELEASE, REST, SEARCH, searchOrder, switchedOff, VERSION, type Mode } from './config';
 import { FAILURES, type Reason } from './errors';
 import { PAGE_HELPERS, SEARCH_ENGINES } from './providers';
 import { JUNK_SITES } from './search/junk-sites';
@@ -51,6 +51,8 @@ export interface Facts {
   /** Who may use this Scrapy: its owner alone (personal), everybody who gets to it (open), or nobody for now (closed). */
   access: Access;
   limits: { perMinute: number; perDay: number };
+  /** Per-account API key quota, present only when Supabase account mode is enabled. */
+  apiKeyAllowance: { perMinute: number; perDay: number } | null;
   search: {
     defaultResults: number;
     maxResults: number;
@@ -143,6 +145,7 @@ export function facts(): Facts {
   return {
     access: access(),
     limits: { perMinute: cfg.visitorPerMinute, perDay: cfg.dailyCalls },
+    apiKeyAllowance: access() === 'accounts' ? { perMinute: API_KEY_LIMITS.perMinute, perDay: API_KEY_LIMITS.perDay } : null,
     search: {
       defaultResults: SEARCH.defaultCount,
       maxResults: SEARCH.maxCount,
@@ -182,6 +185,7 @@ const asCode = (items: string[]): string => items.map((item) => `\`${item}\``).j
 /** The line of the rulebook that says where Scrapy is, and what a caller needs there. */
 export function addressLine(address: string, state: Access = access()): string {
   if (state === 'personal') return `MCP address: ${address} (Streamable HTTP). This Scrapy is personal: every request must carry its owner's key, in the header "Authorization: Bearer <key>".`;
+  if (state === 'accounts') return `MCP address: ${address} (Streamable HTTP). Sign up and make a key on the dashboard; send it in the header "Authorization: Bearer <key>".`;
   if (state === 'closed') return `MCP address: ${address} (Streamable HTTP). This Scrapy is closed for now: it answers no calls.`;
   return `MCP address: ${address} (Streamable HTTP, no key needed).`;
 }
@@ -202,7 +206,7 @@ export function rulebook(options: { address?: string } = {}): string {
   say(
     '# Scrapy: the rulebook for AI agents',
     '',
-    'Scrapy gives you the web through MCP tools: you can search it, and you can read pages. This rulebook says exactly how to call each tool. Follow it. Do not guess parameter names or values.',
+    'Scrapy gives you the web, images and GitHub through MCP tools. You can search and read pages, find images, and receive actual image content from a screenshot or image link. This rulebook says exactly how to call each tool. Follow it. Do not guess parameter names or values.',
     '',
   );
   if (options.address) say(addressLine(options.address), '');
@@ -213,16 +217,18 @@ export function rulebook(options: { address?: string } = {}): string {
     '- You need information and have no link: call `search_web`.',
     '- You have a link and need what the page says: call `fetch_url`.',
     '- You need to follow links across a site: call `web_deep_fetch`.',
+    '- You need to see a page visually: call `image_shot_url`. To find image links on a page, call `extract_images_url`; to receive one actual image, call `extract_image_url` with its image URL.',
     '- You need a GitHub project, issue, or code: call `git_search`; for the project README and file list, call `fetch_git`; for one source file, call `fetch_git_deep`.',
     '- Never make up a link. If you have none, call `search_web` first and take a link from its answer.',
     '',
     '## How to call a tool',
     '',
+    '- If this address requires a key, send it in the `Authorization` header as a bearer token. Account holders create keys on the dashboard.',
     '- Send the arguments as one JSON object.',
     '- Use exactly the parameter names listed below. A parameter that is not listed is refused.',
     '- Leave out a parameter you do not need.',
     '- Give each value in the type listed: a number as `5` and not `"5"`, a boolean as `true` and not `"true"`, a list as `["react.dev"]` and not `"react.dev"`.',
-    '- Every tool answers with plain text.',
+    '- The text part of every tool answer is plain text. The image tools also attach actual image content as MCP image blocks.',
     '',
   );
 
@@ -260,6 +266,7 @@ export function rulebook(options: { address?: string } = {}): string {
     '',
     `- At most ${n(f.limits.perMinute)} calls a minute for each caller.`,
     `- At most ${n(f.limits.perDay)} calls a day for all callers together.`,
+    ...(f.apiKeyAllowance ? [`- Each account key also has its own allowance: ${n(f.apiKeyAllowance.perMinute)} calls a minute and ${n(f.apiKeyAllowance.perDay)} a day.`] : []),
     '- Every call counts, also one that is answered from memory and one with wrong input.',
     `- A search returns ${n(f.search.defaultResults)} results unless you ask for another number, at most ${n(f.search.maxResults)}, and at most ${n(f.search.perSite)} from one site.`,
     `- A page comes in parts of about ${n(f.page.partChars)} characters.`,

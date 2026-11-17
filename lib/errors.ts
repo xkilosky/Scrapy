@@ -52,7 +52,7 @@ export interface FailureAdvice {
  */
 export const FAILURES: Record<Reason, FailureAdvice> = {
   bad_input: {
-    starts: ['The input for', 'This page has'],
+    starts: ['The input for', 'This page has', 'A key name must be'],
     more: ['There is no tool called', 'No search question was given', 'The search question is too long', 'No link was given', 'This link is too long', '"', 'Scrapy reads web pages only', 'Links with a user name or password'],
     means: 'The arguments were not right. The sentence says which one and why, and lists the parameters the tool has.',
     then: 'Correct the arguments and call again. Do not send the same arguments again.',
@@ -68,13 +68,13 @@ export const FAILURES: Record<Reason, FailureAdvice> = {
     then: 'Call again once. If it fails again, use another page or other search words.',
   },
   failed: {
-    starts: ['The free search services could not be reached', 'The free services that load pages could not be reached', 'Could not load this page', 'Could not crawl this site', 'GitHub answered', 'GitHub returned unreadable data', 'Something went wrong inside Scrapy'],
+    starts: ['The free search services could not be reached', 'The free services that load pages could not be reached', 'The screenshot helper could not be reached', 'The image proxy could not be reached', 'The screenshot helper answered', 'The image helper answered', 'The screenshot helper did not return', 'The per-key allowance check could not be completed', 'Could not load this page', 'Could not crawl this site', 'GitHub answered', 'GitHub returned unreadable data', 'Something went wrong inside Scrapy'],
     means: 'A passing problem on the way to the page, or inside Scrapy.',
     then: 'Call again once, after about a minute. If it fails again, tell the user.',
   },
   slow_down: {
     starts: ['Slow down:'],
-    means: 'You made more calls in one minute than one caller may.',
+    means: 'This caller or API key has made more calls in one minute than its limit permits.',
     then: 'Wait as long as the sentence says, then call again.',
   },
   busy: {
@@ -83,14 +83,14 @@ export const FAILURES: Record<Reason, FailureAdvice> = {
     then: 'Do not call the same tool again before the time in the sentence. Work with what you already have, or tell the user.',
   },
   daily_limit: {
-    starts: ['Scrapy has reached its daily ceiling'],
-    means: 'Scrapy has answered as many calls today as its owner allows.',
-    then: 'Stop calling Scrapy until the time in the sentence, and tell the user.',
+    starts: ['Scrapy has reached its daily ceiling', 'This key has reached its daily allowance'],
+    means: 'The key or the whole Scrapy instance has reached its daily call limit.',
+    then: 'Stop calling until the reset time in the sentence.',
   },
   not_found: {
     starts: ['Not found:', 'The site "'],
-    means: 'The page, or the whole site, does not exist.',
-    then: 'Do not call again with this link. Find the right link with search_web.',
+    means: 'The page or image link does not exist.',
+    then: 'Do not call again with this link. Find a valid public page or image link.',
   },
   login: {
     starts: ['Needs a login:'],
@@ -98,14 +98,14 @@ export const FAILURES: Record<Reason, FailureAdvice> = {
     then: 'Do not call again with this link. Look for the same information on a public page.',
   },
   blocked: {
-    starts: ['Blocked by the site:'],
-    means: 'The site refuses automated readers.',
-    then: 'Do not call again with this link. Look for the same information on another site.',
+    starts: ['Blocked by the site:', 'Blocked by the image helper:', 'Blocked by the screenshot helper:'],
+    means: 'The site or image helper refuses automated access.',
+    then: 'Do not repeat this call; try another public page or image source.',
   },
   not_a_page: {
-    starts: ['This link is a file'],
-    means: 'The link leads to a file, such as a PDF or an image, and not to a web page.',
-    then: 'Scrapy cannot read it. Use a link to a web page instead.',
+    starts: ['This link is a file', 'This link did not return a supported image'],
+    means: 'The link did not return readable page content or a supported image.',
+    then: 'For a page, use fetch_url. For an image, use a public PNG, JPEG, WebP or GIF link.',
   },
   private_address: {
     starts: ['Refused:'],

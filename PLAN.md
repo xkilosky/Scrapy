@@ -1,6 +1,6 @@
 # Scrapy: the plan (version 2)
 
-**Current release: G - 2.0 (version 2.0.0).** Six MCP tools are ready: web search, page reading, bounded website crawling, GitHub repository and issue search, repository metadata/README/tree, and single source-file reading. It has a home page, a login, a dashboard and docs. Scrapy remains personal/open/closed by setting, with no users, accounts or database. See [README.md](README.md) for the live feature list.
+**Current code on this branch: G - 2.0 (version 2.0.0) plus optional account mode.** Nine MCP tools are ready, including screenshots and image retrieval. The original open/personal/closed modes remain; optional Supabase mode adds verified sign-up, multiple user-managed MCP keys, and a 30-per-minute/500-per-day allowance per key, while retaining the instance-wide 1,500-per-day ceiling. See [README.md](README.md) for setup and the live feature list.
 
 **Release G - 1.0 (2026-11-12).** Scrapy became personal: you said "No users no accounts Only for myself personal". It has a home page, a login with one password of your own, a dashboard and docs. What that means, and what it needs from you, is under [Access](#access).
 
@@ -89,8 +89,8 @@ Scrapy is a set of web tools that an AI agent calls. Oryzen is the example. Peop
 
 - **Where it runs:** Vercel, on the free plan.
 - **How the agent connects:** MCP, the common plug-in standard for AI tools.
-- **What it has:** seven tools. Your five, plus two I had to add (see [The tools](#the-tools)).
-- **What it costs:** nothing. There is no account to create and no key to buy or copy from another service. Since release G - 1.0 there is one secret, and it is your own: the password that makes Scrapy answer only to you.
+- **What it has:** the MCP tools listed in the current [README](README.md), including search, page reading, crawling, GitHub and image tools.
+- **What it costs:** no paid helper key. The default deployment is account-free; an optional Supabase mode adds verified user accounts and database-backed per-key quotas. The original personal mode still has one owner password secret.
 - **How that is possible:** free services that officially offer a door with no key do the searching, and can load the pages. Scrapy does the rest itself: cleaning, picking out text, images and colours, following links. If you choose, it also loads the pages itself.
 - **The catch:** those free doors are small and can be busy. Scrapy keeps several for each job, but a tool will sometimes answer "busy, try again".
 
@@ -241,7 +241,9 @@ How it works:
 - **The key for your AI.** An AI cannot type a password. So Scrapy makes a long key from your password and shows it on the dashboard. Your AI sends it with every request. The key opens the tools and nothing else: it cannot read the live feed.
 - **A new password** logs every browser out and makes a new key. That is how to take a key back.
 - **Guessing is slowed down.** 5 wrong passwords from one internet address, and that address waits 15 minutes. 100 from everywhere, and the login pauses for an hour.
-- Nothing is stored anywhere. There is no database and no list of users, because there is one owner.
+- In this original owner-password mode, nothing is stored for user accounts. There is no user database because there is one owner.
+
+**Optional multi-user mode added later:** set `SCRAPY_AUTH=supabase`, configure Supabase Auth and the service-role key, and apply `supabase/migrations/20261117032917_scrapy_account_api_keys.sql`. Verified users can create/revoke multiple keys. Each key has a durable 30-calls-per-minute and 500-calls-per-day allowance, plus the existing global safeguards. See [README.md](README.md#supabase-accounts-and-key-allowances); this does not change the original personal mode unless enabled.
 
 This bends one sentence I wrote earlier, "no key to copy anywhere". Your AI now does copy a key: your own. I see no way to have "only for myself" on a public address without a secret of some kind.
 

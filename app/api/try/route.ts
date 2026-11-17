@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export async function POST(request: Request): Promise<Response> {
-  const turnedAway = refusal(request);
+  const turnedAway = await refusal(request);
   if (turnedAway) return turnedAway;
   let body: { tool?: unknown; args?: unknown };
   try {

@@ -19,6 +19,7 @@ function no(status: number, error: string, headers: Record<string, string> = {})
 export async function POST(request: Request): Promise<Response> {
   const state = access();
   if (state === 'closed') return closedResponse();
+  if (state === 'accounts') return no(400, 'Use email and password sign-in at /api/auth/login.');
   if (state === 'open') return no(400, 'This Scrapy has no password, so there is nothing to log in to.');
   if (fromAnotherSite(request)) return no(403, "Log in from Scrapy's own login page.");
   if (!ownerPassword().usable) {

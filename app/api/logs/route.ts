@@ -12,7 +12,7 @@
  * The page asks every few seconds, so "nothing changed" is the common answer
  * and is kept as cheap as possible: one small read of the shared memory.
  */
-import { refusal } from '@/lib/access';
+import { access, refusal } from '@/lib/access';
 import { LOGS, logsOn, logsSetting, onVercel } from '@/lib/config';
 import { getLogBook, isLogId } from '@/lib/logs';
 import { sharedIsReal } from '@/lib/store';
@@ -25,7 +25,8 @@ function answer(body: unknown, status = 200): Response {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  const turnedAway = refusal(request);
+  if (access() === 'accounts') return answer({ on: false, why: 'account keys do not have access to the owner log' }, 404);
+  const turnedAway = await refusal(request);
   if (turnedAway) return turnedAway;
   if (!logsOn()) {
     // "public": off because this is a public address that anybody may use. "setting": switched off with SCRAPY_LOGS=off.

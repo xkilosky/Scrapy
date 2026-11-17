@@ -37,7 +37,7 @@ interface Status {
   /** The name of the release, as people see it. */
   release?: string;
   /** Who may use this Scrapy. */
-  access?: 'personal' | 'open' | 'closed';
+  access?: 'personal' | 'open' | 'closed' | 'accounts';
   /** False when this browser may not use it: closed, or personal and not logged in. */
   allowed?: boolean;
   /** The key for an AI. Only the owner of a personal Scrapy is given it. */
@@ -97,6 +97,7 @@ interface CheckReport {
 interface ToolRun {
   ok: boolean;
   text: string;
+  images?: { data: string; mimeType: string }[];
   reason?: string;
   trace?: {
     totalMs: number;
@@ -191,12 +192,13 @@ export default function Console() {
   const [report, setReport] = useState<CheckReport | null>(null);
   const [checkError, setCheckError] = useState('');
 
-  const [tool, setTool] = useState<'search_web' | 'fetch_url'>('search_web');
+  const [tool, setTool] = useState<'search_web' | 'fetch_url' | 'image_shot_url' | 'extract_images_url' | 'extract_image_url'>('search_web');
   const [query, setQuery] = useState('how to fix a hydration error in next.js');
   const [maxResults, setMaxResults] = useState('8');
   const [recency, setRecency] = useState('');
   const [sites, setSites] = useState('');
   const [url, setUrl] = useState('https://example.com');
+  const [imageUrl, setImageUrl] = useState('https://example.com/image.png');
   const [format, setFormat] = useState('markdown');
   const [focus, setFocus] = useState('');
   const [part, setPart] = useState('1');
@@ -391,13 +393,17 @@ export default function Console() {
                 }
               : {}),
           }
-        : {
-            url,
-            format,
-            ...(focus.trim() ? { focus } : {}),
-            ...(part && part !== '1' ? { part: Number(part) } : {}),
-            ...(browser ? { browser: true } : {}),
-          };
+        : tool === 'extract_image_url'
+          ? { image_url: imageUrl }
+          : tool === 'image_shot_url' || tool === 'extract_images_url'
+            ? { url }
+            : {
+                url,
+                format,
+                ...(focus.trim() ? { focus } : {}),
+                ...(part && part !== '1' ? { part: Number(part) } : {}),
+                ...(browser ? { browser: true } : {}),
+              };
     try {
       const res = await fetch('/api/try', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tool, args }) });
       const data = (await res.json()) as ToolRun & { login?: boolean };
@@ -763,6 +769,15 @@ export default function Console() {
               <button type="button" className={`tab ${tool === 'fetch_url' ? 'on' : ''}`} onClick={() => setTool('fetch_url')}>
                 fetch_url
               </button>
+              <button type="button" className={`tab ${tool === 'image_shot_url' ? 'on' : ''}`} onClick={() => setTool('image_shot_url')}>
+                image_shot_url
+              </button>
+              <button type="button" className={`tab ${tool === 'extract_images_url' ? 'on' : ''}`} onClick={() => setTool('extract_images_url')}>
+                extract_images_url
+              </button>
+              <button type="button" className={`tab ${tool === 'extract_image_url' ? 'on' : ''}`} onClick={() => setTool('extract_image_url')}>
+                extract_image_url
+              </button>
             </div>
 
             {tool === 'search_web' ? (
@@ -790,7 +805,7 @@ export default function Console() {
                   </div>
                 </div>
               </>
-            ) : (
+            ) : tool === 'fetch_url' ? (
               <>
                 <label htmlFor="url">Link</label>
                 <input id="url" type="text" value={url} onChange={(e) => setUrl(e.target.value)} />
@@ -815,6 +830,18 @@ export default function Console() {
                   <input type="checkbox" checked={browser} onChange={(e) => setBrowser(e.target.checked)} /> Use a real browser
                 </label>
               </>
+            ) : tool === 'extract_image_url' ? (
+              <>
+                <label htmlFor="image-url">Image link</label>
+                <input id="image-url" type="text" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
+                <p className="soft">Returns the actual image alongside its description.</p>
+              </>
+            ) : (
+              <>
+                <label htmlFor="url">Page link</label>
+                <input id="url" type="text" value={url} onChange={(e) => setUrl(e.target.value)} />
+                <p className="soft">{tool === 'image_shot_url' ? 'Returns an actual screenshot image.' : 'Lists image links found on this page.'}</p>
+              </>
             )}
 
             <div className="row" style={{ marginTop: 16 }}>
@@ -833,6 +860,14 @@ export default function Console() {
               <>
                 <h3>{run.ok ? 'What the agent gets' : 'What the agent is told'}</h3>
                 <pre>{run.text}</pre>
+                {run.images?.map((image, index) => (
+                  <img
+                    key={`${image.mimeType}-${index}`}
+                    src={`data:${image.mimeType};base64,${image.data}`}
+                    alt={`Image result ${index + 1}`}
+                    style={{ display: 'block', maxWidth: '100%', height: 'auto', marginTop: 12, borderRadius: 8 }}
+                  />
+                ))}
                 <div className="row" style={{ marginTop: 10 }}>
                   <CopyButton text={run.text} label="Copy answer" />
                   {!run.ok && <span className="pill bad">{run.reason ?? 'failed'}</span>}

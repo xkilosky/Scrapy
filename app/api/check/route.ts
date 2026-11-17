@@ -13,7 +13,7 @@ export const maxDuration = 180;
 const REUSE_SEC = 120;
 
 export async function POST(request: Request): Promise<Response> {
-  const turnedAway = refusal(request);
+  const turnedAway = await refusal(request);
   if (turnedAway) return turnedAway;
   const store = getStore();
   const last = await store.get<CheckReport>('check:last');

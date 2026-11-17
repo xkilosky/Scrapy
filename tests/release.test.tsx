@@ -87,7 +87,7 @@ const FIRST_PRINT = 'print-of-the-first-key';
 let made = 0;
 
 /** What Scrapy hands the docs pages, made by the real code, for a Scrapy of the given kind. */
-function docsOf(access: 'personal' | 'open' | 'closed'): DocsPayload {
+function docsOf(access: 'personal' | 'open' | 'closed' | 'accounts'): DocsPayload {
   const payload = JSON.parse(JSON.stringify(docsPayload())) as DocsPayload;
   payload.facts.access = access;
   return payload;
@@ -440,8 +440,7 @@ describe('the MCP doc in the dashboard of a personal Scrapy', () => {
     await openDoc();
     const section = screen.getByRole('heading', { level: 2, name: '1. Connect your AI' }).closest('section') as HTMLElement;
     expect(section.textContent).toContain('This Scrapy is personal: it answers only to its owner. So your AI also sends the owner\u2019s key.');
-    expect(section.textContent).toContain('This Scrapy is personal. A request without the owner\'s key gets one sentence that says so, and nothing else.');
-    expect(section.textContent).toContain('You are logged in, so the copy buttons below put your real key where the examples say YOUR_KEY. The key itself stays off the screen.');
+    expect(section.textContent).toContain('A request without a valid key is refused. The copy buttons below fill in the owner\'s key where the examples say YOUR_KEY. The key itself stays off the screen.');
     expect(section.textContent).toContain(`An app with no place for a header can carry the key at the end of the address instead: ${ADDRESS}?key=YOUR_KEY.`);
     expect(section.textContent).toContain('If the answer says "personal", the key is missing or wrong.');
     expect(section.textContent).not.toContain('Scrapy asks for no key and no account.');
@@ -505,7 +504,7 @@ describe('the docs page, for everybody', () => {
     expect(copied).toEqual([connectSnippets(ADDRESS, { key: true }).cursor.blocks[0]?.code]);
     expect(copied[0]).toContain('Bearer YOUR_KEY');
     const section = screen.getByRole('heading', { level: 2, name: '1. Connect your AI' }).closest('section') as HTMLElement;
-    expect(section.textContent).toContain('In the examples below, put the key where they say YOUR_KEY.');
+    expect(section.textContent).toContain('A request without a valid key is refused. Put your active key where the examples say YOUR_KEY. Keep it out of files you share.');
     expect(section.textContent).not.toContain('You are logged in');
   });
 
@@ -841,7 +840,7 @@ describe('the home page', () => {
     expect(shown()).toContain('Release G - 2.0');
     expect(screen.getByRole('heading', { level: 3, name: 'Search the web' })).toBeTruthy();
     expect(screen.getByRole('heading', { level: 3, name: 'Read a web page' })).toBeTruthy();
-    expect(shown()).toContain('These 6 tools are ready in release G - 2.0. Coming next: extract_text, extract_images, extract_design, background_deep_crawl, crawl_status.');
+    expect(shown()).toContain('These 9 tools are ready in release G - 2.0. Coming next: extract_text, extract_images, extract_design, background_deep_crawl, crawl_status.');
     // Numbers come from the running Scrapy, as on the docs pages.
     const f = docsPayload().facts;
     expect(shown()).toContain(`Your AI gets ${f.search.defaultResults} links, or up to ${f.search.maxResults} when it asks for more.`);
@@ -864,7 +863,7 @@ describe('the home page', () => {
     nav.cookie = newSession() ?? '';
     await home();
     expect(buttons()).toEqual(['Open the dashboard -> /dashboard', 'Read the docs -> /docs']);
-    expect(bar()).toEqual(['Docs -> /docs', 'Dashboard -> /dashboard']);
+    expect(bar()).toEqual(['Docs -> /docs', 'Open the dashboard -> /dashboard']);
     expect(note()).toBe('This Scrapy is personal. It answers only to its owner, and you are logged in. The docs are open to everyone.');
   });
 

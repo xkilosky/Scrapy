@@ -18,6 +18,10 @@ import { fetchUrl } from './fetchUrl';
 import { webDeepFetch } from './crawlWeb';
 import { fetchGit, fetchGitDeep, gitSearch } from './gitTools';
 import { searchWebTool } from './searchWeb';
+import { extractImage, extractImages, imageShot } from './imageTools';
+import type { ToolOutput, ToolImage } from './output';
+import { checkAccountKeyAllowance } from '../accountKeys';
+export type { ToolOutput, ToolImage } from './output';
 
 export interface ToolExample {
   /** What the example is for, in a few words. */
@@ -38,7 +42,7 @@ export interface ToolDef {
   answer: { sample: string; notes: string[] };
   /** Arguments an agent might send when it guesses. The docs show what Scrapy answers to them; a test checks that they are refused. */
   mistake: Record<string, unknown>;
-  run(args: never, trace: Trace): Promise<string>;
+  run(args: never, trace: Trace): Promise<string | ToolOutput>;
 }
 
 const searchSchema = z.strictObject({
@@ -91,6 +95,12 @@ const gitSearchSchema = z.strictObject({
 const gitRepoSchema = z.strictObject({
   repo_owner: z.string().min(1).max(100).regex(/^[A-Za-z0-9-]+$/).describe('The GitHub account or organization that owns the repository.'),
   repo_name: z.string().min(1).max(100).regex(/^[A-Za-z0-9._-]+$/).describe('The repository name, without its owner or a URL.'),
+});
+const imagePageSchema = z.strictObject({
+  url: z.string().min(1).max(2000).describe('The public web page whose screenshot or images you want. Use a link from search_web or from the user.'),
+});
+const imageUrlSchema = z.strictObject({
+  image_url: z.string().min(1).max(2000).describe('The direct public link of one image, for example an image URL found by extract_images_url.'),
 });
 const gitDeepSchema = z.strictObject({
   repo_owner: z.string().min(1).max(100).regex(/^[A-Za-z0-9-]+$/).describe('The GitHub account or organization that owns the repository.'),
@@ -235,6 +245,48 @@ export const TOOLS: ToolDef[] = [
     mistake: { repo_owner: 'vercel', repo_name: 'next.js', file_path: 'src/index.ts', file: 'src/index.ts' },
     run: (args: z.infer<typeof gitDeepSchema>, trace) => fetchGitDeep(args, trace),
   },
+  {
+    name: 'image_shot_url',
+    title: 'Screenshot a web page',
+    description: 'Capture a visual screenshot of a public web page and attach the actual image to the result. Use when you need to see the layout or visual design; this does not return the page text.',
+    schema: imagePageSchema,
+    examples: [
+      { about: 'Take a screenshot of a page.', args: { url: 'https://example.com/' } },
+      { about: 'See the visual layout of a product page.', args: { url: 'https://shop.example.com/product' } },
+      { about: 'Capture a public documentation page.', args: { url: 'https://docs.example.com/' } },
+    ],
+    answer: { sample: 'Screenshot of https://example.com/ (attached as an image, 1280 pixels wide).', notes: ['The result includes the actual screenshot as an MCP image, not only a link.', 'The public screenshot helper renders the page; it may not support sites that require login.', 'Use fetch_url for page text, or extract_images_url for image links found on the page.'] },
+    mistake: { link: 'https://example.com/' },
+    run: (args: z.infer<typeof imagePageSchema>, trace) => imageShot(args, trace),
+  },
+  {
+    name: 'extract_images_url',
+    title: 'Find images on a page',
+    description: 'Read a public web page and list image links found in its content, including alternative text and dimensions when present. Use image_shot_url for a screenshot, or extract_image_url to return one image itself.',
+    schema: imagePageSchema,
+    examples: [
+      { about: 'List images on a page.', args: { url: 'https://example.com/article' } },
+      { about: 'Find images in a gallery.', args: { url: 'https://example.com/gallery' } },
+      { about: 'Find illustrations in documentation.', args: { url: 'https://docs.example.com/guide' } },
+    ],
+    answer: { sample: 'Found 2 images on https://example.com/article.\n\n1. https://example.com/hero.jpg\n   Alt: Product overview\n   Size: 1200 × 800\n2. https://example.com/diagram.png\n   Alt: not provided\n   Size: not provided', notes: ['The list includes unique public image links found in the page content, up to 100.', 'Lazy-loaded image attributes and responsive srcset candidates are included when present.', 'Use extract_image_url with one listed link to return the actual image.'] },
+    mistake: { page_url: 'https://example.com/article' },
+    run: (args: z.infer<typeof imagePageSchema>, trace) => extractImages(args, trace),
+  },
+  {
+    name: 'extract_image_url',
+    title: 'Get one image',
+    description: 'Fetch one public image through Scrapy’s free image helper and attach the actual image to the result. Use an image link from extract_images_url. It does not ask the page’s site directly from Scrapy.',
+    schema: imageUrlSchema,
+    examples: [
+      { about: 'Get a specific image.', args: { image_url: 'https://example.com/hero.jpg' } },
+      { about: 'Fetch an image found on a page.', args: { image_url: 'https://cdn.example.com/diagram.png' } },
+      { about: 'Return an image to inspect visually.', args: { image_url: 'https://images.example.com/photo.webp' } },
+    ],
+    answer: { sample: 'Image from https://example.com/hero.jpg (attached as image/jpeg, 1200 × 800 pixels).', notes: ['The result includes the actual image as an MCP image, not only a link.', 'Only public HTTP(S) image links are accepted; the image is capped at 2.5 MB.', 'For a page screenshot, call image_shot_url instead.'] },
+    mistake: { url: 'https://example.com/hero.jpg' },
+    run: (args: z.infer<typeof imageUrlSchema>, trace) => extractImage(args, trace),
+  },
 ] as ToolDef[];
 
 /** Where an agent finds the whole rulebook over MCP (see lib/docs.ts). */
@@ -242,9 +294,9 @@ export const RULEBOOK_URI = 'scrapy://rulebook';
 
 /** Told to every agent the moment it connects. Short on purpose: the details are in each tool's own description and parameters. */
 export const SERVER_INSTRUCTIONS =
-  'Scrapy gives you the web and GitHub. Call search_web to find pages when you have no link, then fetch_url to read one; call web_deep_fetch to crawl linked pages. Use git_search, fetch_git and fetch_git_deep for public GitHub repositories, discussions and source files. Never make up a link or repository path. ' +
+  'Scrapy gives you the web, images and GitHub. Use search_web to find pages, fetch_url to read one, and web_deep_fetch to crawl linked pages. Use image_shot_url for screenshots, extract_images_url to list page images, and extract_image_url to receive an image. Use git_search, fetch_git and fetch_git_deep for GitHub. Never make up links or repository paths. ' +
   'Send exactly the parameters each tool lists, and nothing else: a parameter that is not listed is refused. ' +
-  'Every tool answers with plain text. When a tool cannot do the job it says why in one sentence ' +
+  'Tool answers are text; the image tools also attach the actual image. When a tool cannot do the job it says why in one sentence ' +
   '(for example "Not found", "Needs a login", "Blocked by the site", or "busy, try again in about 10 minutes") so you know what to do next. ' +
   'Do what that sentence says, and do not repeat the call sooner than it says. ' +
   `The same call again within ${Math.round(SEARCH.cacheSec / 60)} minutes is answered from memory, with the same answer. ` +
@@ -255,6 +307,8 @@ export interface ToolRun {
   text: string;
   reason?: Reason;
   trace: TraceReport;
+  /** Actual image content returned by tools such as image_shot_url. Never written to the live feed. */
+  images?: ToolImage[];
 }
 
 export interface RunOptions {
@@ -265,6 +319,8 @@ export interface RunOptions {
   from?: 'agent' | 'page';
   /** Where the call is written down for the live feed. Tests pass their own book. */
   logs?: LogBook;
+  /** An authenticated Supabase-issued key; its durable per-key allowance is checked in addition to the existing IP/global brakes. */
+  apiKeyId?: string;
 }
 
 /** Marks a value that counts as left out. */
@@ -389,8 +445,11 @@ export async function runTool(name: string, rawArgs: unknown, visitor: string, o
     if (!tool) throw new ScrapyError('bad_input', `There is no tool called "${name}". The tools are: ${TOOLS.map((t) => t.name).join(', ')}.`);
     await (options.limiter ?? getLimiter()).check(visitor);
     admitted = true;
-    const text = await tool.run(checkedInput(tool, rawArgs) as never, trace);
-    run = { ok: true, text, trace: trace.report() };
+    if (options.apiKeyId) await checkAccountKeyAllowance(options.apiKeyId);
+    const output = await tool.run(checkedInput(tool, rawArgs) as never, trace);
+    const text = typeof output === 'string' ? output : output.text;
+    const images = typeof output === 'string' ? undefined : output.images;
+    run = { ok: true, text, trace: trace.report(), ...(images?.length ? { images } : {}) };
   } catch (err) {
     if (err instanceof ScrapyError) {
       run = { ok: false, text: err.message, reason: err.reason, trace: trace.report() };

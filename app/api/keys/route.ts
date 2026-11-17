@@ -18,7 +18,8 @@ function answer(body: unknown, status = 200): Response {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  const turnedAway = refusal(request);
+  if (access() === 'accounts') return answer({ ok: false, error: 'Use the signed-in account key manager.' }, 404);
+  const turnedAway = await refusal(request);
   if (turnedAway) return turnedAway;
   const first = agentKey();
   const book = getKeyBook();
@@ -32,9 +33,10 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  if (access() === 'accounts') return answer({ ok: false, error: 'Use the signed-in account key manager.' }, 404);
   // A page on another site has no business making or turning off keys, logged in or not. The same rule as at "Log out".
   if (fromAnotherSite(request)) return answer({ ok: false, error: "Keys are made and turned off on Scrapy's own pages." }, 403);
-  const turnedAway = refusal(request);
+  const turnedAway = await refusal(request);
   if (turnedAway) return turnedAway;
   let body: { action?: unknown; note?: unknown; print?: unknown };
   try {

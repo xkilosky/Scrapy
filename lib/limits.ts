@@ -5,7 +5,9 @@
  * 2. A daily ceiling for Scrapy as a whole, so it cannot use up the Vercel
  *    allowance that the owner's other projects need.
  *
- * Both are deliberately simple and approximate. They are safety nets, not billing.
+ * Optional Supabase account mode adds a durable per-API-key allowance in
+ * lib/accountKeys.ts. These two instance-level brakes remain in force too.
+ * They are safety nets, not billing.
  */
 import { limits } from './config';
 import { ScrapyError, waitText } from './errors';

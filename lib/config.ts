@@ -1,9 +1,10 @@
 /**
  * Every setting of Scrapy in one place.
  *
- * Scrapy needs no account and no key from any other service. One setting is a
- * secret all the same: the owner's own password, SCRAPY_PASSWORD (see
- * ownerPassword below).
+ * By default Scrapy needs no user account and no paid helper key. Optional
+ * Supabase account mode uses auth and a database for sign-up, API keys and
+ * per-key quotas. In the original personal mode one setting is still a secret:
+ * the owner's password, SCRAPY_PASSWORD (see ownerPassword below).
  */
 
 /** The version as programs want it: in package.json, in the MCP handshake, and in the name Scrapy gives itself. */
@@ -50,6 +51,9 @@ function envList(name: string): string[] | null {
     .filter(Boolean);
   return items.length > 0 ? items : null;
 }
+
+/** Fixed self-serve allowance applied independently to every active account API key. */
+export const API_KEY_LIMITS = { perMinute: 30, perDay: 500 } as const;
 
 export const SEARCH = {
   defaultCount: 8,

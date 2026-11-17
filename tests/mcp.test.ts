@@ -93,6 +93,7 @@ beforeAll(() => {
     const url = new URL(String(input));
     contacted.push(url.host);
     const path = `${url.host}${url.pathname}`;
+    if (url.host === 'image.thum.io' || url.host === 'images.weserv.nl') return new Response(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=', 'base64'), { headers: { 'content-type': 'image/png' } });
     if (url.host === 'mcp.exa.ai') return exa(new Request(url, init));
     if (url.host === 'mcp.parallel.ai') return parallel(new Request(url, init));
     if (path === 'api.tavily.com/search') {
@@ -268,7 +269,7 @@ describe("Scrapy's MCP address", () => {
     expect(client.getServerVersion()).toMatchObject({ name: 'scrapy' });
     expect(client.getInstructions()).toMatch(/search_web/);
     const { tools } = await client.listTools();
-    expect(tools.map((t) => t.name)).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep']);
+    expect(tools.map((t) => t.name)).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep', 'image_shot_url', 'extract_images_url', 'extract_image_url']);
     const search = tools.find((t) => t.name === 'search_web');
     expect(search?.inputSchema.required).toEqual(['query']);
     expect(Object.keys(search?.inputSchema.properties ?? {})).toEqual(['query', 'max_results', 'include_sites', 'exclude_sites', 'recency']);
@@ -280,6 +281,28 @@ describe("Scrapy's MCP address", () => {
     const client = await connect();
     expect(client.getInstructions()).toBe(SERVER_INSTRUCTIONS);
     expect(client.getServerCapabilities()).toMatchObject({ tools: {}, resources: {} });
+    await client.close();
+  });
+
+  it('returns actual image content as an MCP image block', async () => {
+    const client = await connect();
+    const result = await client.callTool({ name: 'image_shot_url', arguments: { url: 'https://example.com/' } });
+    const blocks = result.content as { type: string; text?: string; data?: string; mimeType?: string }[];
+    expect(result.isError).not.toBe(true);
+    expect(blocks[0]).toMatchObject({ type: 'text', text: expect.stringContaining('Screenshot of https://example.com/') });
+    expect(blocks[1]).toMatchObject({ type: 'image', mimeType: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=' });
+    expect(contacted).toContain('image.thum.io');
+    await client.close();
+  });
+
+  it('extract_image_url returns the downloaded bytes as an MCP image block', async () => {
+    const client = await connect();
+    const result = await client.callTool({ name: 'extract_image_url', arguments: { image_url: 'https://example.com/image.png' } });
+    const blocks = result.content as { type: string; text?: string; data?: string; mimeType?: string }[];
+    expect(result.isError).not.toBe(true);
+    expect(blocks[0]?.text).toContain('attached as image/png');
+    expect(blocks[1]).toMatchObject({ type: 'image', mimeType: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=' });
+    expect(contacted).toContain('images.weserv.nl');
     await client.close();
   });
 

@@ -215,10 +215,12 @@ interface ConnectProps {
 function Connect({ address, facts, client, setClient, ownerKey, dash }: ConnectProps) {
   const where = facts.where;
   const personal = facts.access === 'personal';
+  const accounts = facts.access === 'accounts';
+  const keyNeeded = personal || accounts;
   const closed = facts.access === 'closed';
   // Vercel's test addresses are behind Vercel's login. An agent needs Vercel's secret header to get past it.
   const secretNeeded = where.vercel && where.env === 'preview';
-  const needs: Needs = { secret: secretNeeded, key: personal };
+  const needs: Needs = { secret: secretNeeded, key: keyNeeded };
   const snippet = connectSnippets(address, needs)[client];
   const onOwnMachine = typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
   /** What the copy button of a block copies: the same text, with the real key where the block says YOUR_KEY. */
@@ -243,7 +245,9 @@ function Connect({ address, facts, client, setClient, ownerKey, dash }: ConnectP
         Scrapy has one address. Your AI connects to it with MCP and gets the tools from it.{' '}
         {personal
           ? 'This Scrapy is personal: it answers only to its owner. So your AI also sends the owner\u2019s key. Fresh keys, one for each AI, are made and turned off on the dashboard.'
-          : 'Scrapy asks for no key and no account.'}
+          : accounts
+            ? 'Create a Supabase-backed account, verify your email, and make a separate API key for each AI app on the dashboard.'
+            : 'Scrapy asks for no key and no account.'}
       </p>
       <div className="row">
         <code className="address">{address}</code>
@@ -260,6 +264,10 @@ function Connect({ address, facts, client, setClient, ownerKey, dash }: ConnectP
             <dd>
               The owner&apos;s key, in the header <code>Authorization: Bearer {KEY_PLACE}</code>. The owner finds it on the dashboard, under <a href={`${dash}#address`}>The address for your agent</a>.
             </dd>
+          ) : accounts ? (
+            <dd>
+              Your API key, in the header <code>Authorization: Bearer {KEY_PLACE}</code>. Sign in and create one on <a href="/dashboard">the dashboard</a>.
+            </dd>
           ) : (
             <dd>None.</dd>
           )}
@@ -271,17 +279,13 @@ function Connect({ address, facts, client, setClient, ownerKey, dash }: ConnectP
           <strong>This address is closed.</strong> Its owner has not opened it yet, so it answers no calls. The rest of this page says how it works once it is open.
         </div>
       )}
-      {personal && (
+      {keyNeeded && (
         <div className="notice" role="note">
-          <strong>This Scrapy is personal.</strong> A request without the owner&apos;s key gets one sentence that says so, and nothing else.{' '}
+          {personal ? <strong>This Scrapy is personal.</strong> : <strong>Use an account API key.</strong>} A request without a valid key is refused.{' '}
           {ownerKey ? (
-            <>
-              You are logged in, so the copy buttons below put your real key where the examples say <code>{KEY_PLACE}</code>. The key itself stays off the screen.
-            </>
+            <>The copy buttons below fill in the owner&apos;s key where the examples say <code>{KEY_PLACE}</code>. The key itself stays off the screen.</>
           ) : (
-            <>
-              In the examples below, put the key where they say <code>{KEY_PLACE}</code>. Keep it out of files you share.
-            </>
+            <>Put your active key where the examples say <code>{KEY_PLACE}</code>. Keep it out of files you share.</>
           )}
         </div>
       )}
@@ -380,6 +384,13 @@ function Limits({ docs }: { docs: DocsPayload }) {
               </td>
               <td className="note">The call is refused with &quot;Slow down&quot; and how long to wait. A caller is one internet address.</td>
             </tr>
+            {f.apiKeyAllowance && (
+              <tr>
+                <td>Calls per account key</td>
+                <td className="num"><strong>{n(f.apiKeyAllowance.perMinute)}</strong> per minute · <strong>{n(f.apiKeyAllowance.perDay)}</strong> per day</td>
+                <td className="note">Each key has its own allowance. It resets each minute and at midnight UTC; the instance-wide ceiling still applies.</td>
+              </tr>
+            )}
             <tr>
               <td>Calls a day, all callers together</td>
               <td className="num">
@@ -645,7 +656,7 @@ function Logs({ facts, dash }: { facts: Facts; dash: string }) {
       <p className="soft small" style={{ marginBottom: 0 }}>
         {facts.logs.on
           ? `The log is on at this address. It keeps the last ${n(facts.logs.keep)} calls for up to ${n(facts.logs.hours)} hours. ${
-              facts.access === 'personal' ? 'Only the owner, logged in, can read them.' : 'Everybody who can open the Live feed can read them.'
+              facts.access === 'accounts' ? 'Account-key users do not have access to the shared owner log.' : facts.access === 'personal' ? 'Only the owner, logged in, can read them.' : 'Everybody who can open the Live feed can read them.'
             }`
           : 'The log is off at this address, so the Live feed stays empty here. Scrapy writes nothing down.'}{' '}
         Pause stops the feed from asking for new calls. Clear empties the screen only.

@@ -1,12 +1,12 @@
 # Scrapy
 
-Web and GitHub tools for AI agents. An agent connects once, over MCP, and can search the web, read pages, crawl a site, and inspect public GitHub repositories and source files. Scrapy is free to run and needs no account and no paid key anywhere.
+Web, image and GitHub tools for AI agents. An agent connects once, over MCP, and can search the web, read pages, crawl a site, inspect public GitHub repositories and source files, find images, and receive actual screenshot or image content. By default Scrapy needs no user account or paid helper key; an optional Supabase mode adds sign-up and per-key API allowances.
 
 People do not use Scrapy directly. An AI agent does, for example to find out how to fix a bug or to read a documentation page.
 
-Scrapy is **personal**: give it one password of your own and it answers only to you. There are no users and no accounts. See [Personal, open or closed](#personal-open-or-closed).
+Scrapy can run **open**, **personal** (one owner password), or in optional **account mode** (Supabase sign-up and user-managed API keys). The default setup needs no user accounts. See [Personal, open or closed](#personal-open-or-closed) and [Supabase accounts and key allowances](#supabase-accounts-and-key-allowances).
 
-**Status:** release G - 2.0 (version 2.0.0). Six tools are ready: `search_web`, `fetch_url`, `web_deep_fetch`, `git_search`, `fetch_git` and `fetch_git_deep`. Scrapy has a home page, a login, a dashboard and docs. The full plan is in [PLAN.md](PLAN.md).
+**Status:** release G - 2.0 (version 2.0.0), with nine MCP tools: `search_web`, `fetch_url`, `web_deep_fetch`, `git_search`, `fetch_git`, `fetch_git_deep`, `image_shot_url`, `extract_images_url` and `extract_image_url`. The image tools can return actual image content over MCP. Scrapy has a home page, a login, a dashboard and docs. The full plan is in [PLAN.md](PLAN.md).
 
 ## The tools
 
@@ -18,8 +18,10 @@ Scrapy is **personal**: give it one password of your own and it answers only to 
 | `git_search` | Search words; type: repositories, code, or issues; optional language. | Public GitHub matches. GitHub requires login for its code-search API, so code searches use Scrapy's public web search restricted to github.com. | Ready |
 | `fetch_git` | GitHub owner and repository name. | Repository details, README and up to 250 paths from its file tree. | Ready |
 | `fetch_git_deep` | GitHub owner, repository, path of one file, optional branch. | The actual file contents, clipped at 40,000 characters. | Ready |
+| `image_shot_url` | A public page link. | The actual screenshot image, attached as MCP image content. | Ready |
+| `extract_images_url` | A public page link. | Unique image links found in the readable page content, with alt text and dimensions when present. | Ready |
+| `extract_image_url` | A public image link. | The actual image, attached as MCP image content. | Ready |
 | `extract_text` | A link. | The visible text, grouped by where it sits on the page. | Stage 2 |
-| `extract_images` | A link. | Every image with its address, description and kind. | Stage 2 |
 | `extract_design` | A link. | Colour codes with their use, fonts, text sizes, button styles. | Stage 2 |
 | `background_deep_crawl` | A start link, depth and a page limit. | A job number for a large crawl, followed by progress and results. | Stage 3 |
 | `crawl_status` | The job number. | Progress, then the pages. | Stage 3 |
@@ -107,11 +109,12 @@ Before choosing `middle` or `full` on Vercel, read Vercel's [fair-use guidelines
 
 ## Personal, open or closed
 
-Who may use a Scrapy depends on one setting, `SCRAPY_PASSWORD`.
+Who may use a Scrapy depends on `SCRAPY_PASSWORD` and the optional `SCRAPY_AUTH` setting.
 
 | State | When | Who may use it |
 | --- | --- | --- |
-| **Personal** | A password is set. | Its owner alone, at every address. |
+| **Accounts** | `SCRAPY_AUTH=supabase` and Supabase is configured. | Verified users with active per-key API tokens. |
+| **Personal** | A password is set (unless account mode is explicitly selected). | Its owner alone, at every address. |
 | **Open** | No password, on your own machine or on one of Vercel's test addresses. Or no password and `SCRAPY_OPEN=1`. | Everybody who gets to the address. |
 | **Closed** | No password, on Vercel's public address. | Nobody. Every call is answered with one sentence, and nobody is contacted. |
 
@@ -130,17 +133,28 @@ Good to know:
 - **Logging in from another site's page does not work**, and a page on another site cannot use the owner's login.
 - Scrapy keeps the password nowhere but in that setting. Nothing about it is stored, and nothing but the setting can reset it.
 
+### Supabase accounts and key allowances
+
+To let people sign up and manage their own MCP credentials, set `SCRAPY_AUTH=supabase` and configure `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and the server-only `SUPABASE_SERVICE_ROLE_KEY`. Never expose the service-role key to browser code. The Supabase project must allow email sign-up and send confirmation links to `/auth/callback` on this deployment.
+
+Apply [`supabase/migrations/20261117032917_scrapy_account_api_keys.sql`](supabase/migrations/20261117032917_scrapy_account_api_keys.sql) to that Supabase database before enabling account mode. For example, run it with the Supabase CLI or paste it into that project's SQL Editor. The migration creates the private key registry, atomic usage counters, and quota/usage RPCs; raw API tokens are never stored, and authenticated browsers cannot query the key table directly.
+
+Users create multiple labeled keys from `/dashboard`; each raw key is shown once, can be revoked, and is sent as `Authorization: Bearer <key>` to `/api/mcp`. Each key independently allows 30 tool calls per minute and 500 per day. The dashboard shows per-key minute/day usage bars and the shared instance-wide daily meter; the bars refresh every 15 seconds while the dashboard is visible. The existing 30-per-minute caller brake and 1,500-per-day instance-wide ceiling still apply. These quotas are per key, not shared across all keys belonging to one account.
+
+With `SCRAPY_AUTH=supabase`, account access takes precedence over `SCRAPY_PASSWORD` and `SCRAPY_OPEN`. The account dashboard only manages the signed-in user's keys; it does not expose the owner&apos;s shared call log or legacy key controls. Without `SCRAPY_AUTH=supabase`, the original open/personal/closed behavior is unchanged.
+
 Vercel's test addresses need your Vercel login before anything reaches Scrapy. With a password they are personal like every other address.
 
 Good to know: Vercel makes the very first deployment of a new project the public one, whichever branch it comes from.
 
 ## Settings
 
-All settings are optional environment variables. One of them is a secret of your own, the password. None is a key or an account at another service. They are listed with explanations in [.env.example](.env.example): the password, the position, the order of the helpers, helpers to switch off, the two limits, and the log of tool calls.
+Settings are optional environment variables listed in [.env.example](.env.example): the access mode, optional Supabase credentials, owner password, page position, helper order and switches, call limits, and logging. The Supabase service-role key is server-only.
 
 ## Limits and rules
 
 - Each caller may make 30 calls a minute. Scrapy as a whole stops at 1,500 calls a day. Both numbers are settings.
+- In Supabase account mode, each active key also has its own 30-per-minute and 500-per-day allowance; different keys do not share that quota.
 - A personal Scrapy answers a tool call only with its owner's key, and shows its dashboard only to a browser that has logged in.
 - Links to private or internal addresses are refused.
 - Pages behind a login or a paywall are reported as such. Scrapy does not try to get around them.
@@ -256,7 +270,7 @@ The tests replace the network with stand-ins that answer the way the real helper
 | `app/page.tsx`, `app/login/`, `app/dashboard/`, `app/docs/` | The home page, the login, the dashboard and the docs. |
 | `app/ui/` | What the pages are made of: the dashboard (`Console.tsx`) with its menu drawer and the list of its sections and entries, the login form, the live feed, and the two Docs pages. |
 | `app/api/check`, `app/api/try` | Behind the dashboard: the checks, and "Try a tool". |
-| `lib/access.ts`, `lib/owner.ts`, `app/api/login`, `app/api/logout` | Who may use Scrapy: the three states, the password, the key of an AI, the pass of a browser, and the brake on guessing. |
+| `lib/access.ts`, `lib/owner.ts`, `lib/accountKeys.ts`, `app/api/auth/`, `app/api/account/keys` | Access modes, owner login, Supabase accounts, and hashed per-user API keys with per-key quotas. |
 | `lib/logs.ts`, `app/api/logs/route.ts` | The log of tool calls behind the live feed. |
 | `lib/docs.ts`, `app/api/docs`, `app/llms.txt` | The docs: the rulebook for agents, and everything the Docs pages show. |
 | `lib/tools/` | The tools: their parameters, examples and descriptions, the check of what an agent sent, and the text they answer with. |
@@ -270,7 +284,7 @@ The tests replace the network with stand-ins that answer the way the real helper
 
 ## Hosting
 
-Scrapy is a Next.js app and runs on Vercel's free plan as it is. Import the repository in Vercel. It starts closed at its public address. To make it yours, set `SCRAPY_PASSWORD` (at least 10 characters) in the project's Settings, Environment Variables, for Production and for Preview, and deploy again. Then open `/login`.
+Scrapy is a Next.js app and runs on Vercel's free plan as it is. Import the repository in Vercel. With the default settings it starts closed at its public address. For a single owner, set `SCRAPY_PASSWORD` (at least 10 characters) in the project's Settings, Environment Variables, for Production and for Preview, and deploy again. For self-serve users, configure the Supabase variables, apply the migration, set `SCRAPY_AUTH=supabase`, set the Supabase Auth site URL and confirmation redirect to this deployment, then deploy. Account users sign up at `/signup`.
 
 `SCRAPY_OPEN=1` opens a Scrapy that has no password to everybody who has the address. With a password it changes nothing.
 

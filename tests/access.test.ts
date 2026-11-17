@@ -78,7 +78,7 @@ describe('the three states', () => {
     expect(access()).toBe('open');
   });
 
-  it('is personal wherever a password is set, whatever else is set', () => {
+  it('is personal wherever a password is set, whatever else is set', async () => {
     process.env.SCRAPY_PASSWORD = PASSWORD;
     expect(access()).toBe('personal');
     for (const env of ['production', 'preview', 'development']) {
@@ -89,7 +89,7 @@ describe('the three states', () => {
     process.env.VERCEL_ENV = 'production';
     process.env.SCRAPY_OPEN = '1';
     expect(access()).toBe('personal');
-    expect(allowed(get('/api/logs'))).toBe(false);
+    await expect(allowed(get('/api/logs'))).resolves.toBe(false);
   });
 
   it('is personal, and lets nobody in, with a password too short to be used', async () => {
@@ -160,7 +160,7 @@ describe('open', () => {
     expect(pages.status).toBe(200);
     expect(pages.headers.get('cache-control')).toBe('no-store');
     const payload = (await pages.json()) as { tools: { name: string }[]; rulebook: string; addressLine: string; release: string; version: string; facts: { access: string; limits: { perMinute: number } } };
-    expect(payload.tools.map((t) => t.name)).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep']);
+    expect(payload.tools.map((t) => t.name)).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep', 'image_shot_url', 'extract_images_url', 'extract_image_url']);
     expect(payload.rulebook).toBe(rulebook());
     expect(payload.addressLine).toBe('MCP address: {address} (Streamable HTTP, no key needed).');
     expect(payload.facts.access).toBe('open');
@@ -179,9 +179,9 @@ describe('open', () => {
     const tried = await tryTool(post('/api/try', READ_LOCAL));
     expect(tried.status).toBe(200);
     expect(await tried.json()).toMatchObject({ ok: false, reason: 'private_address' });
-    expect(await toolNames(await mcp(post('/api/mcp', LIST)))).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep']);
+    expect(await toolNames(await mcp(post('/api/mcp', LIST)))).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep', 'image_shot_url', 'extract_images_url', 'extract_image_url']);
     // A key nobody asked for does no harm.
-    expect(await toolNames(await mcp(post('/api/mcp', LIST, { authorization: 'Bearer whatever' })))).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep']);
+    expect(await toolNames(await mcp(post('/api/mcp', LIST, { authorization: 'Bearer whatever' })))).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep', 'image_shot_url', 'extract_images_url', 'extract_image_url']);
   });
 
   it('keeps no log on a public address, because everybody could read it', () => {
@@ -226,12 +226,12 @@ describe('personal: the MCP address', () => {
   it('answers an agent that sends the key, in any of the three places', async () => {
     process.env.SCRAPY_PASSWORD = PASSWORD;
     const key = agentKey() ?? '';
-    expect(await toolNames(await mcp(post('/api/mcp', LIST, { authorization: `Bearer ${key}` })))).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep']);
-    expect(await toolNames(await mcp(post('/api/mcp', LIST, { authorization: `bearer ${key}` })))).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep']);
-    expect(await toolNames(await mcp(post('/api/mcp', LIST, { 'x-scrapy-key': key })))).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep']);
-    expect(await toolNames(await mcp(post(`/api/mcp?key=${key}`, LIST)))).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep']);
+    expect(await toolNames(await mcp(post('/api/mcp', LIST, { authorization: `Bearer ${key}` })))).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep', 'image_shot_url', 'extract_images_url', 'extract_image_url']);
+    expect(await toolNames(await mcp(post('/api/mcp', LIST, { authorization: `bearer ${key}` })))).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep', 'image_shot_url', 'extract_images_url', 'extract_image_url']);
+    expect(await toolNames(await mcp(post('/api/mcp', LIST, { 'x-scrapy-key': key })))).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep', 'image_shot_url', 'extract_images_url', 'extract_image_url']);
+    expect(await toolNames(await mcp(post(`/api/mcp?key=${key}`, LIST)))).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep', 'image_shot_url', 'extract_images_url', 'extract_image_url']);
     // One right key is enough, whatever an AI app puts into the other places.
-    expect(await toolNames(await mcp(post(`/api/mcp?key=${key}`, LIST, { authorization: 'Bearer a-token-of-the-app' })))).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep']);
+    expect(await toolNames(await mcp(post(`/api/mcp?key=${key}`, LIST, { authorization: 'Bearer a-token-of-the-app' })))).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep', 'image_shot_url', 'extract_images_url', 'extract_image_url']);
   });
 
   it('is the same on the public address, with or without SCRAPY_OPEN', async () => {
@@ -240,7 +240,7 @@ describe('personal: the MCP address', () => {
     for (const open of [undefined, '1']) {
       if (open) process.env.SCRAPY_OPEN = open;
       expect((await mcp(post('/api/mcp', LIST))).status).toBe(403);
-      expect(await toolNames(await mcp(post('/api/mcp', LIST, withKey())))).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep']);
+      expect(await toolNames(await mcp(post('/api/mcp', LIST, withKey())))).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep', 'image_shot_url', 'extract_images_url', 'extract_image_url']);
     }
   });
 
@@ -249,7 +249,7 @@ describe('personal: the MCP address', () => {
     const old = withKey();
     process.env.SCRAPY_PASSWORD = 'a brand new password';
     expect((await mcp(post('/api/mcp', LIST, old))).status).toBe(403);
-    expect(await toolNames(await mcp(post('/api/mcp', LIST, withKey())))).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep']);
+    expect(await toolNames(await mcp(post('/api/mcp', LIST, withKey())))).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep', 'image_shot_url', 'extract_images_url', 'extract_image_url']);
   });
 });
 
@@ -327,7 +327,7 @@ describe('personal: what everybody may see', () => {
     process.env.SCRAPY_PASSWORD = PASSWORD;
     const info = (await (await status(get('/api/status', browser()))).json()) as Record<string, unknown>;
     expect(info).toMatchObject({ access: 'personal', open: true, allowed: true, key: agentKey(), mode: 'safe', limits: { visitorPerMinute: 30, dailyCalls: 1500 } });
-    expect((info.tools as { name: string }[]).map((t) => t.name)).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep']);
+    expect((info.tools as { name: string }[]).map((t) => t.name)).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep', 'image_shot_url', 'extract_images_url', 'extract_image_url']);
     // Not from another site, though.
     const other = (await (await status(get('/api/status', { ...browser(), 'sec-fetch-site': 'cross-site' }))).json()) as Record<string, unknown>;
     expect(other).toMatchObject({ allowed: false });
@@ -345,7 +345,7 @@ describe('personal: what everybody may see', () => {
     const payload = JSON.parse(body) as { addressLine: string; facts: { access: string; logs: { on: boolean } }; tools: { name: string }[] };
     expect(payload.facts.access).toBe('personal');
     expect(payload.facts.logs.on).toBe(true);
-    expect(payload.tools.map((t) => t.name)).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep']);
+    expect(payload.tools.map((t) => t.name)).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep', 'image_shot_url', 'extract_images_url', 'extract_image_url']);
     expect(payload.addressLine).toBe(addressLine('{address}'));
 
     const rules = await llms(get('/llms.txt'));

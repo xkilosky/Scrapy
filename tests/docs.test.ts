@@ -436,7 +436,7 @@ describe('the rulebook for agents', () => {
   });
 
   it('is short enough to paste into an instruction, and plain text only', () => {
-    expect(text.length).toBeLessThan(17_000);
+    expect(text.length).toBeLessThan(20_000);
     // Nothing a model cannot read, and nothing that would look like markup to it.
     expect(text).not.toMatch(/<[a-z/]/i);
     expect(text).not.toMatch(/\t/);
@@ -467,7 +467,7 @@ describe('what the docs page is given', () => {
     expect(payload.instructions).toBe(SERVER_INSTRUCTIONS);
     expect(payload.rulebook).toBe(rulebook());
     expect(payload.rulebookUri).toBe('scrapy://rulebook');
-    expect(payload.tools.map((t) => t.name)).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep']);
+    expect(payload.tools.map((t) => t.name)).toEqual(['search_web', 'fetch_url', 'web_deep_fetch', 'git_search', 'fetch_git', 'fetch_git_deep', 'image_shot_url', 'extract_images_url', 'extract_image_url']);
     expect(payload.tools[0]?.signature).toContain('query (string, required, 1 to 500 characters); max_results (integer, 1 to 20, default 8)');
     expect(payload.tools[0]?.schema).toEqual(jsonSchemaOf(search.schema));
     // It can be sent as it is.

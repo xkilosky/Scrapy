@@ -6,6 +6,7 @@ import { cookies } from 'next/headers';
 import { access, type Access } from '@/lib/access';
 import { ownerPassword } from '@/lib/config';
 import { SESSION_COOKIE, sessionFits } from '@/lib/owner';
+import { currentSupabaseUser } from '@/lib/supabase/server';
 
 export interface Viewer {
   /** Who may use this Scrapy: see lib/access.ts. */
@@ -18,6 +19,10 @@ export interface Viewer {
 
 export async function viewer(): Promise<Viewer> {
   const state = access();
-  const loggedIn = state === 'personal' && sessionFits((await cookies()).get(SESSION_COOKIE)?.value);
+  const loggedIn = state === 'personal'
+    ? sessionFits((await cookies()).get(SESSION_COOKIE)?.value)
+    : state === 'accounts'
+      ? Boolean(await currentSupabaseUser())
+      : false;
   return { state, loggedIn, locked: state === 'personal' && !ownerPassword().usable };
 }

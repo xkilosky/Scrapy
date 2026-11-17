@@ -5,6 +5,7 @@
 import { exaPage, exaSearch } from './exa';
 import { firecrawlPage, firecrawlSearch } from './firecrawl';
 import { jinaPage } from './jina';
+import { IMAGE_HELPER_HOSTS } from './image';
 import { ownPage } from './own';
 import { parallelPage, parallelSearch } from './parallel';
 import { tavilyPage, tavilySearch } from './tavily';
@@ -19,6 +20,6 @@ export const PAGE_HELPERS: PageWay[] = [jinaPage, firecrawlPage, tavilyPage, par
 export const OWN_DOWNLOAD: PageWay = ownPage;
 
 /** Every host a helper may contact. In the safe position Scrapy contacts nothing else. */
-export const HELPER_HOSTS: string[] = [...new Set([...SEARCH_ENGINES, ...PAGE_HELPERS].flatMap((h) => h.hosts))].sort();
+export const HELPER_HOSTS: string[] = [...new Set([...SEARCH_ENGINES, ...PAGE_HELPERS].flatMap((h) => h.hosts).concat(IMAGE_HELPER_HOSTS))].sort();
 
 export type { PageWay, SearchEngine } from './types';

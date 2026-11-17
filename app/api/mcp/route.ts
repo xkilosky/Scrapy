@@ -2,6 +2,8 @@
  * The MCP address. An AI agent connects here and gets Scrapy's tools.
  */
 import { createMcpHandler } from 'mcp-handler';
+import { access } from '@/lib/access';
+import { apiKeyForRequest } from '@/lib/accountKeys';
 import { mcpRefusal } from '@/lib/access';
 import { VERSION } from '@/lib/config';
 import { originOf, rulebook } from '@/lib/docs';
@@ -49,9 +51,17 @@ const handler = createMcpHandler(
           annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
         },
         async (args, ctx) => {
-          const visitor = ctx.http?.req ? visitorOf(ctx.http.req) : 'unknown';
-          const run = await runTool(tool.name, args, visitor, { from: 'agent' });
-          return { content: [{ type: 'text' as const, text: run.text }], ...(run.ok ? {} : { isError: true }) };
+          const request = ctx.http?.req;
+          const visitor = request ? visitorOf(request) : 'unknown';
+          const apiKey = request && access() === 'accounts' ? await apiKeyForRequest(request) : null;
+          const run = await runTool(tool.name, args, visitor, { from: 'agent', ...(apiKey ? { apiKeyId: apiKey.id } : {}) });
+          return {
+            content: [
+              { type: 'text' as const, text: run.text },
+              ...(run.images ?? []).map((image) => ({ type: 'image' as const, data: image.data, mimeType: image.mimeType })),
+            ],
+            ...(run.ok ? {} : { isError: true }),
+          };
         },
       );
     }

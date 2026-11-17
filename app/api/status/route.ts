@@ -24,7 +24,7 @@ export async function GET(request: Request): Promise<Response> {
   const state = access();
   const basics = { name: 'scrapy', version: VERSION, release: RELEASE, access: state };
   if (state === 'closed') return answer({ ...basics, open: false, allowed: false, message: CLOSED_TEXT });
-  if (!allowed(request)) return answer({ ...basics, open: true, allowed: false, message: LOGIN_TEXT });
+  if (!(await allowed(request))) return answer({ ...basics, open: true, allowed: false, message: state === 'accounts' ? 'Sign in to your account to use Scrapy.' : LOGIN_TEXT });
   const off = switchedOff();
   return answer({
     ...basics,

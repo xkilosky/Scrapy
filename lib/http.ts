@@ -38,6 +38,10 @@ export interface HttpRequest {
   /** Shown in the trace, for example "tavily search". */
   purpose: string;
   maxBytes?: number;
+  /** Read a binary body (for image output) instead of decoding it as text. */
+  responseType?: 'text' | 'bytes';
+  /** Replace the traced address when the URL contains a target URL that should stay private. */
+  traceAddress?: string;
   /** Lets a caller give up early, for example when another way already answered. */
   signal?: AbortSignal;
 }
@@ -46,6 +50,8 @@ export interface HttpResult {
   status: number;
   headers: Headers;
   text: string;
+  /** Present only when responseType is "bytes". */
+  bytes?: Uint8Array;
   ms: number;
   /** The body as JSON, or undefined when it is not JSON. */
   json(): unknown;
@@ -58,6 +64,34 @@ function describeNetworkError(err: unknown): string {
 
 function addressOf(url: URL): string {
   return `${url.origin}${url.pathname}`;
+}
+
+async function readCappedBytes(res: Response, maxBytes: number): Promise<Uint8Array> {
+  if (!res.body) {
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes.byteLength > maxBytes) throw new HttpFailure('unreachable', `response was larger than ${maxBytes} bytes`);
+    return bytes;
+  }
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done || !value) break;
+    if (total + value.byteLength > maxBytes) {
+      await reader.cancel().catch(() => undefined);
+      throw new HttpFailure('unreachable', `response was larger than ${maxBytes} bytes`);
+    }
+    chunks.push(value);
+    total += value.byteLength;
+  }
+  const all = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    all.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return all;
 }
 
 async function readCapped(res: Response, maxBytes: number): Promise<string> {
@@ -115,13 +149,16 @@ export async function httpCall(trace: Trace, req: HttpRequest): Promise<HttpResu
       redirect: 'follow',
     });
     status = res.status;
-    const text = await readCapped(res, req.maxBytes ?? 8_000_000);
+    const bytes = req.responseType === 'bytes' ? await readCappedBytes(res, req.maxBytes ?? 8_000_000) : undefined;
+    const text = bytes === undefined ? await readCapped(res, req.maxBytes ?? 8_000_000) : '';
     return {
       status,
       headers: res.headers,
       text,
+      ...(bytes !== undefined ? { bytes } : {}),
       ms: Date.now() - started,
       json() {
+        if (bytes !== undefined) return undefined;
         try {
           return JSON.parse(text) as unknown;
         } catch {
@@ -134,6 +171,10 @@ export async function httpCall(trace: Trace, req: HttpRequest): Promise<HttpResu
       note = `no answer after ${Math.round(req.timeoutMs / 1000)} s`;
       throw new HttpFailure('timeout', note);
     }
+    if (err instanceof HttpFailure) {
+      note = err.message;
+      throw err;
+    }
     if (req.signal?.aborted) {
       note = 'stopped, another way answered first';
       throw new HttpFailure('cancelled', note);
@@ -142,7 +183,7 @@ export async function httpCall(trace: Trace, req: HttpRequest): Promise<HttpResu
     throw new HttpFailure('unreachable', note);
   } finally {
     guard.done();
-    trace.contacts.push({ purpose: req.purpose, method, address: addressOf(url), host: url.host, status, ms: Date.now() - started, ...(note ? { note } : {}) });
+    trace.contacts.push({ purpose: req.purpose, method, address: req.traceAddress ?? addressOf(url), host: url.host, status, ms: Date.now() - started, ...(note ? { note } : {}) });
   }
 }
 

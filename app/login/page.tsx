@@ -5,6 +5,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { PASSWORD_MIN, RELEASE } from '@/lib/config';
 import { LoginForm } from '../ui/LoginForm';
+import { AccountAuthForm } from '../ui/AccountAuthForm';
 import { viewer } from '../ui/viewer';
 
 export const dynamic = 'force-dynamic';
@@ -22,7 +23,13 @@ export default async function LoginPage() {
       </a>
       <section className="card">
         <h1>Log in</h1>
-        {who.state === 'closed' ? (
+        {who.state === 'accounts' ? (
+          <>
+            <p className="lead">Sign in to manage your API keys.</p>
+            <AccountAuthForm mode="login" />
+            <p className="soft">New to Scrapy? <a href="/signup">Create an account</a>.</p>
+          </>
+        ) : who.state === 'closed' ? (
           <>
             <p className="lead">This address is closed. Its owner has not opened it yet, so there is nothing to log in to.</p>
             <p className="soft" style={{ marginBottom: 0 }}>

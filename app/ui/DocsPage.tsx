@@ -24,7 +24,7 @@ export function docFromHash(hash: string): DocId {
 
 interface Status {
   release?: string;
-  access?: 'personal' | 'open' | 'closed';
+  access?: 'personal' | 'open' | 'closed' | 'accounts';
   allowed?: boolean;
   /** The key for an AI. Only the owner of a personal Scrapy, logged in, is given it. */
   key?: string | null;
@@ -85,7 +85,7 @@ export function DocsPage() {
   const showing = menuItem(view);
   const retry = () => setAttempt((t) => t + 1);
   // Where the button in the bar leads: to the dashboard for those who may use it, to the login for the owner who is not logged in.
-  const enter = !status || status.access === 'closed' ? null : status.allowed ? { href: '/dashboard', label: 'Dashboard' } : status.access === 'personal' ? { href: '/login', label: 'Log in' } : null;
+  const enter = !status || status.access === 'closed' ? null : status.allowed ? { href: '/dashboard', label: 'Dashboard' } : status.access === 'personal' ? { href: '/login', label: 'Log in' } : status.access === 'accounts' ? { href: '/signup', label: 'Create account' } : null;
 
   return (
     <>
